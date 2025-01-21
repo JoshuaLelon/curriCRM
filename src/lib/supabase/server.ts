@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 export function createClient() {
+  console.info('[supabase/server] Creating Supabase client (server log)')
   const cookieStore = cookies()
 
   return createServerClient(
@@ -14,16 +15,18 @@ export function createClient() {
         },
         set(name: string, value: string, options: CookieOptions) {
           try {
+            console.info(`[supabase/server] Setting cookie: ${name}`)
             cookieStore.set({ name, value, ...options })
           } catch (error) {
-            // Handle cookie errors
+            console.error('[supabase/server] Cookie set error:', error)
           }
         },
         remove(name: string, options: CookieOptions) {
           try {
+            console.info(`[supabase/server] Removing cookie: ${name}`)
             cookieStore.delete({ name, ...options })
           } catch (error) {
-            // Handle cookie errors
+            console.error('[supabase/server] Cookie remove error:', error)
           }
         },
       },

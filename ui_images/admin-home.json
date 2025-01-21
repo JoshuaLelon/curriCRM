@@ -1,0 +1,42 @@
+{
+  "user": {
+    "id": "123e4567-e89b-12d3-a456-426614174004",
+    "email": "admin@example.com"
+  },
+  "requests": [
+    {
+      "id": "123e4567-e89b-12d3-a456-426614174001",
+      "student": {
+        "email": "student1@example.com"
+      },
+      "expert": {
+        "email": "expert1@example.com"
+      },
+      "source": {
+        "title": "Introduction to Machine Learning",
+        "url": "https://example.com/ml-intro"
+      },
+      "status": "in_progress",
+      "type": "tutorial",
+      "tag": "ai",
+      "created_at": "2024-03-15T10:00:00Z"
+    },
+    {
+      "id": "123e4567-e89b-12d3-a456-426614174002",
+      "student": {
+        "email": "student2@example.com"
+      },
+      "expert": {
+        "email": "expert2@example.com"
+      },
+      "source": {
+        "title": "Advanced Calculus Concepts",
+        "url": "https://example.com/calculus"
+      },
+      "status": "finished",
+      "type": "explanation",
+      "tag": "math",
+      "created_at": "2024-03-14T15:30:00Z"
+    }
+  ]
+} 

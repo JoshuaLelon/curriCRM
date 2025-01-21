@@ -71,3 +71,8 @@ src/
 - By default, Supabase local dev sends test emails to an inbucket server on port 54324.
 - Check http://127.0.0.1:54324 or similar URL to see if your magic link email appears.
 - If you want to send real emails in dev, configure an SMTP provider in supabase/config.toml or via the dashboard.
+
+## Logging
+- Server-side logs (console.info, console.warn, console.error) are visible in terminal or hosting provider logs, not the browser console.
+- route.ts now uses console.info to log magic-link POST requests and any errors from Supabase.
+- src/lib/supabase/server.ts logs cookie operations.

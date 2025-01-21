@@ -10,4 +10,12 @@ This directory contains the Magic Link login page for the app.
 ## Hosted Supabase Considerations
 - Make sure your Supabase "Site URL" in Project Settings matches your deployed domain.
 - Confirm email sending is configured in the Supabase Dashboard under "Authentication" → "Email" settings (SMTP or a built-in email provider).
-- Check the Supabase "Logs" in the Dashboard to see if emails are being sent or if there are errors. 
+- Check the Supabase "Logs" in the Dashboard to see if emails are being sent or if there are errors.
+
+# Login Page
+
+This directory contains the Magic Link login page.
+
+- page.tsx: A client component that sends a POST request to /api/auth/magic-link.
+- We've replaced old console logs with server-side logging (console.info, console.warn, console.error) in route.ts and server.ts, all visible in the terminal/hosting provider logs.
+- For hosted Supabase, confirm your email settings in the Supabase dashboard. 

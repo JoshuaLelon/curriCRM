@@ -1,0 +1,60 @@
+graph TD
+    SL["Student Login"]
+    AL["Admin Login"]
+    EL["Expert Login"]
+    EM["Email"]
+    
+    SH["Student Home"]
+    AH["Admin Home"]
+    EH["Expert Home"]
+    
+    SNR["Student New Request"]
+    SVF["Student View Finished"]
+    SVI["Student View In Progress"]
+    EWR["Expert Work Request"]
+
+    %% Login page interconnections
+    SL <--> AL
+    SL <--> EL
+    AL <--> EL
+    
+    %% Send Link flows
+    SL -- "Send Link" --> SL
+    AL -- "Send Link" --> AL
+    EL -- "Send Link" --> EL
+    
+    %% Email flows
+    SL -- "Link in email" --> EM
+    AL -- "Link in email" --> EM
+    EL -- "Link in email" --> EM
+    
+    EM -- "Student link" --> SH
+    EM -- "Admin link" --> AH
+    EM -- "Expert link" --> EH
+    
+    %% Student Home flows
+    SH --> SNR
+    SH -- "Status: Finished" --> SVF
+    SH -- "Status: Not Started/In Progress" --> SVI
+    SH -- "Status: Not Accepted" --> SNR
+    
+    %% Return to Home flows
+    SNR --> SH
+    SVF --> SH
+    SVI --> SH
+    
+    %% Expert flows
+    EH -- "View Request" --> EWR
+    EWR --> EH
+    
+    %% Admin flows
+    AH -- "View Request" --> SVF
+    AH -- "View Request" --> SVI
+    
+    %% Logout flows
+    SH -- "Log Out" --> SL
+    AH -- "Log Out" --> AL
+    EH -- "Log Out" --> EL
+    
+    %% Status change (same page)
+    EWR -- "Advance (status change)" --> EWR
