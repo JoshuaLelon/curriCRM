@@ -1,9 +1,0 @@
-{
-  "pageType": "login",
-  "userType": "admin",
-  "alternateLogins": ["student", "expert"],
-  "notification": {
-    "show": false,
-    "message": "Link sent to your email"
-  }
-} 
