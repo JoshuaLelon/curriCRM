@@ -1,9 +1,10 @@
+"use client"
 import UserHeader from "@/components/user-header"
 import RequestDetails from "@/components/request-details"
 import Chat from "@/components/chat"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { useRouter } from "next/router"
+import { useRouter } from "next/navigation"
 
 // This would normally come from an API or database
 const mockData = {

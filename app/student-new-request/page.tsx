@@ -1,3 +1,5 @@
+'use client'
+
 import UserHeader from "@/components/user-header"
 import NewRequestForm from "@/components/new-request-form"
 import { useRouter } from "next/navigation"
