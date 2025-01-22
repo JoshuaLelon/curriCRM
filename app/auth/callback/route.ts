@@ -4,20 +4,41 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
+  const error = requestUrl.searchParams.get('error')
+  const errorDescription = requestUrl.searchParams.get('error_description')
 
-  if (!code) {
-    return NextResponse.redirect(new URL('/login?error=missing-code', requestUrl.origin))
+  // Handle error cases first
+  if (error || !code) {
+    console.error('Auth error:', { error, errorDescription })
+    const searchParams = new URLSearchParams()
+    if (error) searchParams.set('error', error)
+    if (errorDescription) searchParams.set('error_description', errorDescription)
+    return NextResponse.redirect(new URL(`/login?${searchParams.toString()}`, requestUrl.origin))
   }
 
-  const supabase = createServerSupabaseClient()
-  const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(code)
+  try {
+    const supabase = createServerSupabaseClient()
+    const { data: { session }, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
 
-  if (error) {
-    console.error('Auth error:', error)
-    return NextResponse.redirect(new URL('/login?error=auth-failed', requestUrl.origin))
+    if (exchangeError) {
+      console.error('Session exchange error:', exchangeError)
+      return NextResponse.redirect(
+        new URL('/login?error=auth_failed&error_description=' + encodeURIComponent(exchangeError.message),
+        requestUrl.origin
+      ))
+    }
+
+    // Successful auth - redirect to home
+    const redirectTo = session?.user?.user_metadata?.role === 'expert' 
+      ? '/expert-home'
+      : '/student-home'
+    
+    return NextResponse.redirect(new URL(redirectTo, requestUrl.origin))
+  } catch (error) {
+    console.error('Unexpected error:', error)
+    return NextResponse.redirect(
+      new URL('/login?error=unexpected&error_description=' + encodeURIComponent('An unexpected error occurred'),
+      requestUrl.origin
+    ))
   }
-
-  // Get the URL to redirect to after successful authentication
-  const redirectTo = '/student-home'
-  return NextResponse.redirect(new URL(redirectTo, requestUrl.origin))
 } 
