@@ -1,45 +1,28 @@
 'use client'
 
-import { FormEvent, useState } from 'react'
-import { createBrowserSupabaseClient } from '@/utils/supabase/client'
-import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import LoginPage from "@/components/login-page"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
-export default function LoginPage() {
-  const supabase = createBrowserSupabaseClient()
-  const [email, setEmail] = useState('')
-  const router = useRouter()
-
-  async function handleLogin(e: FormEvent) {
-    e.preventDefault()
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-      },
-    })
-    if (!error) {
-      // Show success notification or simply redirect
-      router.push('/login?check_inbox=1')
-    } else {
-      console.error(error)
-    }
-  }
-
+export default function StudentLoginPage() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen">
-      <form onSubmit={handleLogin}>
-        <Input
-          type="email"
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="me@example.com"
-          required
-        />
-        <Button type="submit" className="mt-2 bg-[#7C8CFF] text-white">
-          Send Magic Link
-        </Button>
-      </form>
-    </div>
+    <>
+      <LoginPage
+        userType="student"
+        alternateLogins={["admin", "expert"]}
+      />
+      <div className="mt-4">
+        <Link href="/admin-login">
+          <Button variant="secondary" className="bg-[#7C8CFF] hover:bg-[#666ECC] text-white">
+            Admin Login
+          </Button>
+        </Link>
+        <Link href="/expert-login">
+          <Button variant="secondary" className="bg-[#7C8CFF] hover:bg-[#666ECC] text-white">
+            Expert Login
+          </Button>
+        </Link>
+      </div>
+    </>
   )
-} 
+}

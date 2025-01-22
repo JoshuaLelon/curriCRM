@@ -2,27 +2,31 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 export function createServerSupabaseClient() {
-  const requestCookies = cookies()
-  let cookiesToReturn: Response | undefined
+  const cookieStore = cookies()
 
-  const supabase = createServerClient(
+  return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return requestCookies.getAll()
+        get(name: string) {
+          return cookieStore.get(name)?.value
         },
-        setAll(cookiesToSet) {
-          // For normal server calls, you can set them on the cookies object
-          cookiesToSet.forEach(({ name, value, options }) => {
-            requestCookies.set(name, value, options)
-          })
-          // If you are returning a NextResponse in route handlers, manually copy them there
+        set(name: string, value: string, options: any) {
+          try {
+            cookieStore.set(name, value, options)
+          } catch (error) {
+            // Handle the error silently - cookies will be set in the route handler
+          }
+        },
+        remove(name: string, options: any) {
+          try {
+            cookieStore.set(name, '', { ...options, maxAge: 0 })
+          } catch (error) {
+            // Handle the error silently - cookies will be handled in the route handler
+          }
         },
       },
     }
   )
-
-  return supabase
 } 

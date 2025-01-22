@@ -1,19 +1,10 @@
-import { createServerSupabaseClient } from '@/utils/supabase/server'
-import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
-
-export default async function AuthCallback() {
-  const supabase = createServerSupabaseClient()
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
-
-  // You can handle error or no-user scenario
-  if (!user || error) {
-    return <div>Sign in link invalid or expired.</div>
-  }
-
-  // If sign-in is good, you might redirect them to a user dashboard or wherever
-  redirect('/student-home')
+export default function AuthCallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="animate-pulse text-center">
+        <h2 className="text-lg font-semibold">Signing you in...</h2>
+        <p className="text-sm text-muted-foreground">Please wait while we complete the authentication process.</p>
+      </div>
+    </div>
+  )
 } 

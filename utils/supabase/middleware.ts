@@ -3,14 +3,16 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
-
+  const cookies = request.cookies.getAll()
+  console.log("Middleware NextRequest cookies:", cookies)
+  
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {
-          return request.cookies.getAll()
+          return cookies
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
@@ -22,6 +24,7 @@ export async function updateSession(request: NextRequest) {
       },
     }
   )
+  console.log("Middleware user session:", await supabase.auth.getSession())
 
   const {
     data: { user },

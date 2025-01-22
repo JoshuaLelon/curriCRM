@@ -1,6 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, FormEvent } from "react"
+import { createBrowserSupabaseClient } from '@/utils/supabase/client'
+import { useRouter } from 'next/navigation'
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,13 +13,28 @@ interface LoginPageProps {
 }
 
 export default function LoginPage({ userType, alternateLogins }: LoginPageProps) {
+  const supabase = createBrowserSupabaseClient()
   const [email, setEmail] = useState("")
+  const router = useRouter()
   const [showNotification, setShowNotification] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setShowNotification(true)
-    setTimeout(() => setShowNotification(false), 3000)
+    e.preventDefault()    
+    console.log('Sending signInWithOtp. Email:', email)
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+      },
+    })
+    if (!error) {
+      // Show success notification or simply redirect
+      setShowNotification(true)
+      setTimeout(() => setShowNotification(false), 3000)
+      router.push('/login?check_inbox=1')
+    } else {
+      console.error('signInWithOtp error:', error)
+    }
   }
 
   return (
@@ -40,7 +57,7 @@ export default function LoginPage({ userType, alternateLogins }: LoginPageProps)
           />
 
           <Button type="submit" className="w-full bg-[#7C8CFF] hover:bg-[#666ECC] text-white">
-            Send Link
+            Send Magic Link
           </Button>
         </form>
       </div>
