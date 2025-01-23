@@ -1,3 +1,6 @@
+-- Enable pgcrypto extension
+create extension if not exists pgcrypto;
+
 -- Drop existing schema if it exists
 drop schema if exists public cascade;
 create schema public;
@@ -252,7 +255,10 @@ create or replace function public.handle_new_user()
 returns trigger as $$
 declare
   profile_id int8;
+  role_id int8;
+  user_specialty tag;
 begin
+  -- Create profile
   insert into public.profiles (id, user_id, email)
   values (
     (select coalesce(max(id), 0) + 1 from public.profiles),
@@ -260,6 +266,26 @@ begin
     new.email
   )
   returning id into profile_id;
+
+  -- Determine specialty based on email
+  case
+    when new.email = 'joshua.mitchell@g.austincc.edu' then
+      user_specialty := null; -- Admin has no specialty
+    when new.email = 'joshua.mitchell@gauntletai.com' then
+      user_specialty := 'software'::tag; -- Expert with software specialty
+    else
+      user_specialty := null; -- Students have no specialty
+  end case;
+
+  -- Create user role
+  insert into public.user_roles (id, specialty, profile_id)
+  values (
+    (select coalesce(max(id), 0) + 1 from public.user_roles),
+    user_specialty,
+    profile_id
+  )
+  returning id into role_id;
+
   return new;
 end;
 $$ language plpgsql security definer;
@@ -311,8 +337,137 @@ begin
 end;
 $$;
 
+-- Create the function to check auth schema
+create or replace function public.check_auth_schema()
+returns jsonb
+language plpgsql
+security definer
+as $$
+declare
+  result jsonb;
+begin
+  select jsonb_build_object(
+    'auth_schema_exists', exists (
+      select 1 from information_schema.schemata where schema_name = 'auth'
+    ),
+    'auth_tables', (
+      select jsonb_agg(table_name)
+      from information_schema.tables
+      where table_schema = 'auth'
+    )
+  ) into result;
+  
+  return result;
+end;
+$$;
+
+-- Create the function to check service role permissions
+create or replace function public.check_service_role_permissions()
+returns jsonb
+language plpgsql
+security definer
+as $$
+declare
+  result jsonb;
+begin
+  -- First check if we can access auth schema
+  perform set_config('search_path', 'auth', false);
+  
+  select jsonb_build_object(
+    'current_role', current_user,
+    'current_database', current_database(),
+    'can_access_auth_schema', (
+      select has_schema_privilege(current_user, 'auth', 'USAGE')
+    ),
+    'auth_table_permissions', (
+      select jsonb_object_agg(
+        table_name,
+        (
+          select jsonb_agg(distinct privilege_type)
+          from information_schema.role_table_grants
+          where table_schema = 'auth'
+            and table_name = t.table_name
+            and grantee = current_user
+        )
+      )
+      from information_schema.tables t
+      where table_schema = 'auth'
+    ),
+    'auth_schema_privileges', (
+      select jsonb_agg(distinct privilege_type)
+      from information_schema.role_usage_grants
+      where object_schema = 'auth'
+        and grantee = current_user
+    )
+  ) into result;
+  
+  -- Reset search path
+  perform set_config('search_path', 'public', false);
+  
+  return result;
+end;
+$$;
+
+-- Grant execute permission to authenticated users
+grant execute on function public.check_auth_schema() to authenticated;
+grant execute on function public.check_auth_schema() to anon;
+grant execute on function public.check_service_role_permissions() to authenticated;
+grant execute on function public.check_service_role_permissions() to anon;
+
 -- Grant permissions
 grant usage on schema public to service_role, anon, authenticated;
 grant all privileges on all tables in schema public to service_role;
 grant all privileges on all sequences in schema public to service_role;
 grant all privileges on all functions in schema public to service_role;
+
+-- Create function to create auth user
+create or replace function public.create_auth_user(user_email text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = auth, public
+as $$
+declare
+  result jsonb;
+  user_id uuid;
+begin
+  -- Insert into auth.users with minimal required fields for magic link auth
+  insert into auth.users (
+    instance_id,
+    id,
+    aud,
+    role,
+    email,
+    email_confirmed_at,
+    created_at,
+    updated_at,
+    raw_app_meta_data,
+    raw_user_meta_data,
+    is_sso_user,
+    encrypted_password
+  ) values (
+    '00000000-0000-0000-0000-000000000000',
+    gen_random_uuid(),
+    'authenticated',
+    'authenticated',
+    user_email,
+    now(), -- Pre-confirm email for magic link
+    now(),
+    now(),
+    '{"provider":"email","providers":["email"]}',
+    '{}',
+    false,
+    '' -- No password needed for magic link
+  ) returning id into user_id;
+
+  -- Get the created user
+  select row_to_json(u)::jsonb into result
+  from auth.users u
+  where u.id = user_id;
+
+  return result;
+end;
+$$;
+
+-- Grant execute permission to service role
+grant execute on function public.create_auth_user(text) to service_role;

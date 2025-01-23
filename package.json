@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "seed": "echo 'y' | supabase db reset --linked"
+    "seed": "echo 'y' | supabase db reset --linked && npx tsx supabase/seed-auth-users.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
