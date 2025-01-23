@@ -128,9 +128,13 @@ create policy "Experts can create sources"
   );
 
 -- Requests policies
-create policy "Requests are viewable by everyone"
+drop policy if exists "Students can view their own requests" on public.requests;
+drop policy if exists "Experts can view assigned requests" on public.requests;
+drop policy if exists "Admins can view all requests" on public.requests;
+
+create policy "Authenticated users can view requests"
   on public.requests for select
-  using (true);
+  using (auth.role() = 'authenticated');
 
 create policy "Students can create requests"
   on public.requests for insert
@@ -149,9 +153,20 @@ create policy "Experts can update assigned requests"
     expert_id = (
       select p.id from public.profiles p
       where p.user_id = auth.uid()
-      limit 1
+      and p.specialty is not null
+      and not p.is_admin
     )
   );
+
+-- Additional policies for foreign key references
+create policy "Profiles are viewable by everyone"
+  on public.profiles for select
+  using (true);
+
+-- Grant permissions for foreign key references
+grant select on public.profiles to authenticated;
+grant select on public.sources to authenticated;
+grant select on public.requests to authenticated;
 
 -- Curriculums policies
 create policy "Curriculums are viewable by everyone"

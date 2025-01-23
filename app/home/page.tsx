@@ -51,19 +51,35 @@ export default function HomePage() {
           .single()
         if (profileError) throw profileError
 
+        console.log('Profile data:', profile)
+
+        // Determine role based on profile fields
+        const role = profile.is_admin ? "admin" : profile.specialty ? "expert" : "student"
+        console.log('Determined role:', role)
+
         setUser({
           email: currentUser.email || "",
-          role: profile.role
+          role
         })
 
         // Load relevant requests based on role
         let requestsQuery
-        if (profile.role === "student") {
+        if (role === "student") {
+          console.log('Making student query with profile ID:', profile.id)
           requestsQuery = supabase
             .from("requests")
-            .select("*, source(*), expert(*)")
+            .select(`
+              *,
+              source:sources(*),
+              expert:profiles!requests_expert_id_fkey(
+                id,
+                email,
+                specialty,
+                is_admin
+              )
+            `)
             .eq("student_id", profile.id)
-        } else if (profile.role === "expert") {
+        } else if (role === "expert") {
           requestsQuery = supabase
             .from("requests")
             .select("*, source(*), student:profiles!requests_student_id_fkey(*)")
@@ -72,15 +88,34 @@ export default function HomePage() {
           // Admin sees all requests
           requestsQuery = supabase
             .from("requests")
-            .select("*, source(*), student:profiles!requests_student_id_fkey(*), expert:profiles!requests_expert_id_fkey(*)")
+            .select(`
+              *,
+              source:sources(*),
+              student:profiles!requests_student_id_fkey(
+                id,
+                email,
+                specialty,
+                is_admin
+              ),
+              expert:profiles!requests_expert_id_fkey(
+                id,
+                email,
+                specialty,
+                is_admin
+              )
+            `)
         }
 
         const { data: requestsData, error: requestsError } = await requestsQuery
-        if (requestsError) throw requestsError
+        if (requestsError) {
+          console.error('Request query error:', requestsError)
+          throw requestsError
+        }
+        console.log('Request query successful:', requestsData)
         setRequests(requestsData)
 
         // Load experts list if admin
-        if (profile.role === "admin") {
+        if (role === "admin") {
           const { data: expertsData, error: expertsError } = await supabase
             .from("profiles")
             .select("*")
