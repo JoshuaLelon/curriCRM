@@ -267,24 +267,30 @@ begin
   )
   returning id into profile_id;
 
-  -- Determine specialty based on email
+  -- Determine specialty based on email and create role only for admin/expert
   case
     when new.email = 'joshua.mitchell@g.austincc.edu' then
-      user_specialty := null; -- Admin has no specialty
+      -- Admin has no specialty
+      insert into public.user_roles (id, specialty, profile_id)
+      values (
+        (select coalesce(max(id), 0) + 1 from public.user_roles),
+        null,
+        profile_id
+      )
+      returning id into role_id;
     when new.email = 'joshua.mitchell@gauntletai.com' then
-      user_specialty := 'software'::tag; -- Expert with software specialty
+      -- Expert with software specialty
+      insert into public.user_roles (id, specialty, profile_id)
+      values (
+        (select coalesce(max(id), 0) + 1 from public.user_roles),
+        'software'::tag,
+        profile_id
+      )
+      returning id into role_id;
     else
-      user_specialty := null; -- Students have no specialty
+      -- Students don't get a user role
+      null;
   end case;
-
-  -- Create user role
-  insert into public.user_roles (id, specialty, profile_id)
-  values (
-    (select coalesce(max(id), 0) + 1 from public.user_roles),
-    user_specialty,
-    profile_id
-  )
-  returning id into role_id;
 
   return new;
 end;
