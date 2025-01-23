@@ -2,6 +2,23 @@
 
 A curriculum management system that connects students with experts.
 
+## Authentication
+
+The application uses Supabase for authentication with magic link emails. Important notes about the auth implementation:
+
+- Uses PKCE flow for secure authentication
+- Session cookies are configured to be accessible by the client-side Supabase library
+- Cookie configuration:
+  ```js
+  {
+    path: '/',
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 60 * 60 * 24 * 7 // 1 week
+  }
+  ```
+- Note: `httpOnly` is intentionally disabled to allow the browser-based Supabase client to access session data
+
 ## Structure
 
 The application follows a role-based architecture with unified pages that adapt to the user's role:

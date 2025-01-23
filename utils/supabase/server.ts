@@ -21,19 +21,40 @@ export function createServerSupabaseClient() {
         },
         set(name: string, value: string, options: any) {
           try {
-            cookieStore.set(name, value, options)
+            cookieStore.set({
+              name,
+              value,
+              ...options,
+              path: '/',
+              sameSite: 'lax',
+              httpOnly: true,
+              secure: process.env.NODE_ENV === 'production',
+              maxAge: 60 * 60 * 24 * 7 // 1 week
+            })
           } catch (error) {
             // Handle the error silently - cookies will be set in the route handler
           }
         },
         remove(name: string, options: any) {
           try {
-            cookieStore.set(name, '', { ...options, maxAge: 0 })
+            cookieStore.set({
+              name,
+              value: '',
+              path: '/',
+              ...options,
+              maxAge: 0
+            })
           } catch (error) {
             // Handle the error silently - cookies will be handled in the route handler
           }
         },
       },
+      auth: {
+        flowType: 'pkce',
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        persistSession: true,
+      }
     }
   )
 } 

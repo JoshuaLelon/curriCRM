@@ -1,13 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useRouter } from "next/navigation"
 import UserHeader from "@/components/user-header"
 import StudentHome from "@/components/home/student-home"
 import ExpertHome from "@/components/home/expert-home"
 import AdminHome from "@/components/home/admin-home"
 import type { Request, Profile } from "@/types"
+import { useSupabase } from '@/components/providers/supabase-provider'
 
 interface User {
   email: string
@@ -15,16 +15,24 @@ interface User {
 }
 
 export default function HomePage() {
+  const { isLoading, hasSession, supabase } = useSupabase()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [requests, setRequests] = useState<Request[]>([])
   const [experts, setExperts] = useState<Profile[]>([])
-  const supabase = createClientComponentClient()
+
+  useEffect(() => {
+    if (!isLoading && !hasSession) {
+      router.push('/login')
+    }
+  }, [isLoading, hasSession, router])
 
   useEffect(() => {
     async function loadData() {
+      if (!hasSession) return // Don't load data if no session
+
       try {
         // Get current user
         const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser()
@@ -87,8 +95,22 @@ export default function HomePage() {
       }
     }
 
-    loadData()
-  }, [supabase, router])
+    if (hasSession) {
+      loadData()
+    }
+  }, [hasSession, supabase, router])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    )
+  }
+
+  if (!hasSession) {
+    return null // Will redirect in useEffect
+  }
 
   if (loading) {
     return (

@@ -5,6 +5,17 @@ create extension if not exists pgcrypto;
 drop schema if exists public cascade;
 create schema public;
 
+-- Grant necessary permissions
+grant usage on schema public to anon, authenticated;
+grant all on all tables in schema public to anon, authenticated;
+grant all on all sequences in schema public to anon, authenticated;
+grant all on all routines in schema public to anon, authenticated;
+
+-- Additional auth schema permissions
+grant usage on schema auth to service_role;
+grant all on all tables in schema auth to service_role;
+grant all on all sequences in schema auth to service_role;
+
 -- Drop and recreate custom types
 drop type if exists public.content_type cascade;
 drop type if exists public.tag cascade;
@@ -14,14 +25,16 @@ create type public.content_type as enum ('tutorial', 'explanation', 'how_to_guid
 create type public.tag as enum ('math', 'software', 'ai');
 
 -- Create profiles table (extends Supabase auth.users)
+create sequence if not exists public.profiles_id_seq;
 create table public.profiles (
-  id int8 primary key,
+  id int8 primary key default nextval('public.profiles_id_seq'),
   user_id uuid references auth.users on delete cascade,
   email text,
   created_at timestamptz default timezone('utc'::text, now()),
   specialty public.tag,
   is_admin boolean not null default false
 );
+alter sequence public.profiles_id_seq owned by public.profiles.id;
 
 -- Create sources table
 create table public.sources (
@@ -226,13 +239,20 @@ create policy "Participants can insert messages"
 
 -- Function to handle new user profiles
 create or replace function public.handle_new_user()
-returns trigger as $$
+returns trigger
+security definer
+set search_path = public, auth
+language plpgsql
+as $$
 declare
   profile_id int8;
   user_specialty text;
 begin
-  -- Set search path to include public schema
-  perform set_config('search_path', 'public,auth', false);
+  -- Add delay to ensure user is fully created
+  perform pg_sleep(0.1);
+  
+  -- Log the new user creation attempt
+  raise notice 'Creating profile for user: % (ID: %)', new.email, new.id;
 
   -- Determine specialty without using enum directly
   user_specialty := case
@@ -240,16 +260,20 @@ begin
     else null
   end;
 
+  -- Check if profile already exists
+  if exists (select 1 from public.profiles where user_id = new.id) then
+    raise notice 'Profile already exists for user: %', new.email;
+    return new;
+  end if;
+
   -- Create profile with appropriate role
   insert into public.profiles (
-    id,
     user_id,
     email,
     specialty,
     is_admin
   )
   values (
-    (select coalesce(max(id), 0) + 1 from public.profiles),
     new.id,
     new.email,
     user_specialty::public.tag,
@@ -257,15 +281,31 @@ begin
   )
   returning id into profile_id;
 
+  raise notice 'Created profile with ID: % for user: %', profile_id, new.email;
   return new;
+exception
+  when others then
+    raise warning 'Failed to create profile for % (ID: %): %', new.email, new.id, SQLERRM;
+    return new;
 end;
-$$ language plpgsql security definer;
+$$;
 
 -- Drop and recreate trigger for new user profiles
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- Grant additional permissions for auth operations
+grant usage on schema auth to authenticated;
+grant usage on schema auth to anon;
+grant select on auth.users to authenticated;
+grant select on auth.users to anon;
+grant update on auth.users to authenticated;
+grant update on auth.users to anon;
+grant insert on auth.users to service_role;
+grant update on auth.users to service_role;
+grant delete on auth.users to service_role;
 
 -- Create function to create auth user with proper error handling
 create or replace function public.create_seed_auth_user(
@@ -784,3 +824,26 @@ $$;
 
 -- Grant execute permission to service role
 grant execute on function public.create_auth_user(text) to service_role;
+
+-- Grant specific permissions for profiles table
+grant all privileges on public.profiles to authenticated;
+grant all privileges on public.profiles to anon;
+grant usage on sequence public.profiles_id_seq to authenticated;
+grant usage on sequence public.profiles_id_seq to anon;
+
+-- Grant permissions for requests
+grant all privileges on public.requests to authenticated;
+grant all privileges on public.requests to anon;
+
+-- Additional RLS policies for requests
+create policy "Users can view their own requests"
+  on public.requests for select
+  using (
+    student_id in (
+      select id from public.profiles where user_id = auth.uid()
+    )
+    or
+    expert_id in (
+      select id from public.profiles where user_id = auth.uid()
+    )
+  );

@@ -1,37 +1,51 @@
 "use client"
 
-import { useState, FormEvent, useMemo } from "react"
-import { createBrowserClient } from '@supabase/ssr'
+import { useState, FormEvent, useEffect } from "react"
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useSupabase } from '@/components/providers/supabase-provider'
 
 interface LoginPageProps {
   userType: string
 }
 
 export default function LoginPage({ userType }: LoginPageProps) {
-  const supabase = useMemo(() => 
-    createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    ), 
-  [])
+  const { isLoading: isSessionLoading, hasSession, supabase } = useSupabase()
   const [email, setEmail] = useState("")
   const router = useRouter()
   const [showNotification, setShowNotification] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    if (!isSessionLoading && hasSession) {
+      router.replace('/home')
+      return
+    }
+  }, [isSessionLoading, hasSession, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()    
     setError(null)
+    setIsLoading(true)
+    
+    console.log('Starting magic link sign in for:', email)
     
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      const { data, error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
+          emailRedirectTo: `${location.origin}/auth/callback`,
+          data: {
+            userType
+          }
         }
+      })
+
+      console.log('Sign in attempt result:', {
+        error: error || 'none',
+        data
       })
 
       if (error) {
@@ -41,12 +55,29 @@ export default function LoginPage({ userType }: LoginPageProps) {
       }
 
       setShowNotification(true)
-      setTimeout(() => setShowNotification(false), 3000)
       router.push('/login?check_inbox=1')
     } catch (err) {
       console.error('Unexpected error:', err)
       setError('An unexpected error occurred')
+    } finally {
+      setIsLoading(false)
     }
+  }
+
+  if (hasSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    )
+  }
+
+  if (isSessionLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    )
   }
 
   return (
@@ -66,10 +97,15 @@ export default function LoginPage({ userType }: LoginPageProps) {
             onChange={(e) => setEmail(e.target.value)}
             required
             className="bg-white"
+            disabled={isLoading}
           />
 
-          <Button type="submit" className="w-full bg-[#7C8CFF] hover:bg-[#666ECC] text-white">
-            Send Magic Link
+          <Button 
+            type="submit" 
+            className="w-full bg-[#7C8CFF] hover:bg-[#666ECC] text-white"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Sending...' : 'Send Magic Link'}
           </Button>
         </form>
 
