@@ -23,8 +23,7 @@ async function checkAuthUsers() {
   
   const expectedEmails = [
     'joshua.mitchell@g.austincc.edu',
-    'joshua.mitchell@gauntletai.com',
-    'jlelonmitchell@gmail.com'
+    'joshua.mitchell@gauntletai.com'
   ]
 
   const { data: users, error } = await supabase.auth.admin.listUsers()

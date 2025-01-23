@@ -5,9 +5,13 @@ create extension if not exists pgcrypto;
 drop schema if exists public cascade;
 create schema public;
 
+-- Drop and recreate custom types
+drop type if exists public.content_type cascade;
+drop type if exists public.tag cascade;
+
 -- Create custom types
-create type content_type as enum ('tutorial', 'explanation', 'how_to_guide', 'reference');
-create type tag as enum ('math', 'software', 'ai');
+create type public.content_type as enum ('tutorial', 'explanation', 'how_to_guide', 'reference');
+create type public.tag as enum ('math', 'software', 'ai');
 
 -- Create profiles table (extends Supabase auth.users)
 create table public.profiles (
@@ -15,7 +19,7 @@ create table public.profiles (
   user_id uuid references auth.users on delete cascade,
   email text,
   created_at timestamptz default timezone('utc'::text, now()),
-  specialty tag,
+  specialty public.tag,
   is_admin boolean not null default false
 );
 
@@ -38,8 +42,8 @@ create table public.requests (
   source_id uuid references public.sources(id),
   start_time int8,
   end_time int8,
-  content_type content_type,
-  tag tag,
+  content_type public.content_type,
+  tag public.tag,
   student_id int8 references public.profiles(id),
   expert_id int8 references public.profiles(id)
 );
@@ -225,7 +229,17 @@ create or replace function public.handle_new_user()
 returns trigger as $$
 declare
   profile_id int8;
+  user_specialty text;
 begin
+  -- Set search path to include public schema
+  perform set_config('search_path', 'public,auth', false);
+
+  -- Determine specialty without using enum directly
+  user_specialty := case
+    when new.email = 'joshua.mitchell@gauntletai.com' then 'software'
+    else null
+  end;
+
   -- Create profile with appropriate role
   insert into public.profiles (
     id,
@@ -238,10 +252,7 @@ begin
     (select coalesce(max(id), 0) + 1 from public.profiles),
     new.id,
     new.email,
-    case
-      when new.email = 'joshua.mitchell@gauntletai.com' then 'software'::tag
-      else null
-    end,
+    user_specialty::public.tag,
     new.email = 'joshua.mitchell@g.austincc.edu'
   )
   returning id into profile_id;
@@ -250,7 +261,8 @@ begin
 end;
 $$ language plpgsql security definer;
 
--- Create trigger for new user profiles
+-- Drop and recreate trigger for new user profiles
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
@@ -259,7 +271,7 @@ create trigger on_auth_user_created
 create or replace function public.create_seed_auth_user(
   user_email text,
   is_admin boolean default false,
-  user_specialty tag default null
+  user_specialty public.tag default null
 )
 returns uuid
 language plpgsql
@@ -321,10 +333,8 @@ as $$
 declare
   admin_id uuid;
   expert_id uuid;
-  student_id uuid;
   admin_profile_id int8;
   expert_profile_id int8;
-  student_profile_id int8;
 begin
   -- Create auth users in a transaction
   begin
@@ -341,13 +351,6 @@ begin
       false,
       'software'
     );
-    
-    -- Create student user
-    student_id := public.create_seed_auth_user(
-      'jlelonmitchell@gmail.com',
-      false,
-      null
-    );
 
     -- Get profile IDs
     select id into admin_profile_id
@@ -357,10 +360,6 @@ begin
     select id into expert_profile_id
     from public.profiles p
     where p.user_id = expert_id;
-
-    select id into student_profile_id
-    from public.profiles p
-    where p.user_id = student_id;
 
     -- Create sources
     insert into public.sources (id, title, URL, created_by)
@@ -391,10 +390,10 @@ begin
         null,
         null,
         null,
-        'tutorial',
-        'software',
-        student_profile_id,
-        null
+        'tutorial'::public.content_type,
+        'software'::public.tag,
+        null,
+        expert_profile_id
       ),
       (
         '00000000-0000-0000-0000-000000000102'::uuid,
@@ -403,9 +402,9 @@ begin
         null,
         null,
         null,
-        'explanation',
-        'ai',
-        student_profile_id,
+        'explanation'::public.content_type,
+        'ai'::public.tag,
+        null,
         expert_profile_id
       ),
       (
@@ -415,9 +414,9 @@ begin
         now() - interval '3 days',
         null,
         '00000000-0000-0000-0000-000000000001'::uuid,
-        'how_to_guide',
-        'math',
-        student_profile_id,
+        'how_to_guide'::public.content_type,
+        'math'::public.tag,
+        null,
         expert_profile_id
       ),
       (
@@ -427,9 +426,9 @@ begin
         now() - interval '8 days',
         now() - interval '1 day',
         '00000000-0000-0000-0000-000000000002'::uuid,
-        'reference',
-        'software',
-        student_profile_id,
+        'reference'::public.content_type,
+        'software'::public.tag,
+        null,
         expert_profile_id
       );
 
@@ -515,7 +514,7 @@ begin
         1,
         '00000000-0000-0000-0000-000000000101'::uuid,
         'I need help understanding software design patterns',
-        student_profile_id,
+        null,
         now() - interval '3 days'
       ),
       -- Messages for not started request
@@ -523,7 +522,7 @@ begin
         2,
         '00000000-0000-0000-0000-000000000102'::uuid,
         'Could you explain neural networks to me?',
-        student_profile_id,
+        null,
         now() - interval '2 days'
       ),
       (
@@ -538,7 +537,7 @@ begin
         4,
         '00000000-0000-0000-0000-000000000103'::uuid,
         'I need a guide on calculus fundamentals',
-        student_profile_id,
+        null,
         now() - interval '5 days'
       ),
       (
@@ -560,7 +559,7 @@ begin
         7,
         '00000000-0000-0000-0000-000000000104'::uuid,
         'I need a reference for data structures',
-        student_profile_id,
+        null,
         now() - interval '10 days'
       ),
       (
@@ -574,7 +573,7 @@ begin
         9,
         '00000000-0000-0000-0000-000000000104'::uuid,
         'Thanks! This is exactly what I needed',
-        student_profile_id,
+        null,
         now() - interval '2 days'
       );
   exception
@@ -711,6 +710,28 @@ grant usage on schema public to service_role, anon, authenticated;
 grant all privileges on all tables in schema public to service_role;
 grant all privileges on all sequences in schema public to service_role;
 grant all privileges on all functions in schema public to service_role;
+
+-- Grant auth schema permissions
+GRANT USAGE ON SCHEMA auth TO authenticated;
+GRANT USAGE ON SCHEMA auth TO anon;
+
+-- Grant select on auth.users to allow user lookup
+GRANT SELECT ON auth.users TO authenticated;
+GRANT SELECT ON auth.users TO anon;
+
+-- Grant necessary permissions for magic link auth
+GRANT SELECT, UPDATE ON auth.users TO authenticated;
+GRANT SELECT, UPDATE ON auth.users TO anon;
+
+-- Grant access to sessions and refresh tokens
+GRANT SELECT, INSERT, UPDATE ON auth.refresh_tokens TO authenticated;
+GRANT SELECT, INSERT, UPDATE ON auth.refresh_tokens TO anon;
+GRANT SELECT, INSERT, UPDATE ON auth.sessions TO authenticated;
+GRANT SELECT, INSERT, UPDATE ON auth.sessions TO anon;
+
+-- Grant usage on auth schema sequences
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA auth TO authenticated;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA auth TO anon;
 
 -- Create function to create auth user
 create or replace function public.create_auth_user(user_email text)
