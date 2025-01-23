@@ -14,7 +14,18 @@ create table public.profiles (
   id int8 primary key,
   user_id uuid references auth.users on delete cascade,
   email text,
-  created_at timestamptz default timezone('utc'::text, now())
+  created_at timestamptz default timezone('utc'::text, now()),
+  specialty tag,
+  is_admin boolean not null default false
+);
+
+-- Create sources table
+create table public.sources (
+  id uuid primary key,
+  created_at timestamptz default timezone('utc'::text, now()),
+  title varchar,
+  URL text,
+  created_by int8 references public.profiles(id)
 );
 
 -- Create requests table
@@ -24,13 +35,13 @@ create table public.requests (
   accepted_at timestamptz,
   started_at timestamptz,
   finished_at timestamptz,
-  source_id uuid,
+  source_id uuid references public.sources(id),
   start_time int8,
   end_time int8,
   content_type content_type,
   tag tag,
-  student_id int8,
-  expert_id int8
+  student_id int8 references public.profiles(id),
+  expert_id int8 references public.profiles(id)
 );
 
 -- Create curriculums table
@@ -45,21 +56,12 @@ create table public.curriculums (
 create table public.curriculum_nodes (
   id uuid primary key,
   curriculum_id uuid references public.curriculums on delete cascade,
-  source_id uuid,
+  source_id uuid references public.sources(id),
   created_at timestamptz default timezone('utc'::text, now()),
   start_time int8,
   end_time int8,
   level int4,
   index_in_curriculum int4
-);
-
--- Create sources table
-create table public.sources (
-  id uuid primary key,
-  created_at timestamptz default timezone('utc'::text, now()),
-  title varchar,
-  URL text,
-  created_by int8
 );
 
 -- Create messages table
@@ -68,15 +70,7 @@ create table public.messages (
   request_id uuid references public.requests on delete cascade,
   content text,
   created_at timestamptz default timezone('utc'::text, now()),
-  sender_id int8
-);
-
--- Create user_roles table
-create table public.user_roles (
-  id int8 primary key,
-  created_at timestamptz default timezone('utc'::text, now()),
-  specialty tag,
-  profile_id int8 references public.profiles on delete cascade
+  sender_id int8 references public.profiles(id)
 );
 
 -- Enable RLS on all tables
@@ -86,7 +80,6 @@ alter table public.curriculums enable row level security;
 alter table public.curriculum_nodes enable row level security;
 alter table public.sources enable row level security;
 alter table public.messages enable row level security;
-alter table public.user_roles enable row level security;
 
 -- Profiles policies
 create policy "Public profiles are viewable by everyone"
@@ -101,19 +94,19 @@ create policy "Users can update own profile"
   on public.profiles for update
   using (auth.uid()::text = user_id::text);
 
--- User roles policies
-create policy "User roles are viewable by everyone"
-  on public.user_roles for select
+-- Sources policies
+create policy "Sources are viewable by everyone"
+  on public.sources for select
   using (true);
 
-create policy "Only admins can insert user roles"
-  on public.user_roles for insert
+create policy "Experts can create sources"
+  on public.sources for insert
   with check (
     exists (
-      select 1 from public.user_roles ur
-      join public.profiles p on p.id = ur.profile_id
-      where p.user_id = auth.uid()
-      and ur.specialty is null -- Admin has no specialty
+      select 1 from public.profiles p
+      where p.id = created_by
+      and p.user_id = auth.uid()
+      and p.specialty is not null
     )
   );
 
@@ -126,10 +119,10 @@ create policy "Students can create requests"
   on public.requests for insert
   with check (
     exists (
-      select 1 from public.user_roles ur
-      join public.profiles p on p.id = ur.profile_id
+      select 1 from public.profiles p
       where p.user_id = auth.uid()
-      and ur.specialty is null -- Students have no specialty
+      and p.specialty is null
+      and not p.is_admin
     )
   );
 
@@ -137,8 +130,7 @@ create policy "Experts can update assigned requests"
   on public.requests for update
   using (
     expert_id = (
-      select ur.id from public.user_roles ur
-      join public.profiles p on p.id = ur.profile_id
+      select p.id from public.profiles p
       where p.user_id = auth.uid()
       limit 1
     )
@@ -156,8 +148,7 @@ create policy "Experts can create curriculums for their requests"
       select 1 from public.requests r
       where r.id = request_id
       and r.expert_id = (
-        select ur.id from public.user_roles ur
-        join public.profiles p on p.id = ur.profile_id
+        select p.id from public.profiles p
         where p.user_id = auth.uid()
         limit 1
       )
@@ -177,27 +168,10 @@ create policy "Experts can create curriculum nodes"
       join public.requests r on r.id = c.request_id
       where c.id = curriculum_id
       and r.expert_id = (
-        select ur.id from public.user_roles ur
-        join public.profiles p on p.id = ur.profile_id
+        select p.id from public.profiles p
         where p.user_id = auth.uid()
         limit 1
       )
-    )
-  );
-
--- Sources policies
-create policy "Sources are viewable by everyone"
-  on public.sources for select
-  using (true);
-
-create policy "Experts can create sources"
-  on public.sources for insert
-  with check (
-    exists (
-      select 1 from public.user_roles ur
-      join public.profiles p on p.id = ur.profile_id
-      where p.user_id = auth.uid()
-      and ur.specialty is not null
     )
   );
 
@@ -210,15 +184,13 @@ create policy "Messages are viewable by participants"
       where r.id = request_id
       and (
         r.student_id = (
-          select ur.id from public.user_roles ur
-          join public.profiles p on p.id = ur.profile_id
+          select p.id from public.profiles p
           where p.user_id = auth.uid()
           limit 1
         )
         or
         r.expert_id = (
-          select ur.id from public.user_roles ur
-          join public.profiles p on p.id = ur.profile_id
+          select p.id from public.profiles p
           where p.user_id = auth.uid()
           limit 1
         )
@@ -234,15 +206,13 @@ create policy "Participants can insert messages"
       where r.id = request_id
       and (
         r.student_id = (
-          select ur.id from public.user_roles ur
-          join public.profiles p on p.id = ur.profile_id
+          select p.id from public.profiles p
           where p.user_id = auth.uid()
           limit 1
         )
         or
         r.expert_id = (
-          select ur.id from public.user_roles ur
-          join public.profiles p on p.id = ur.profile_id
+          select p.id from public.profiles p
           where p.user_id = auth.uid()
           limit 1
         )
@@ -255,42 +225,26 @@ create or replace function public.handle_new_user()
 returns trigger as $$
 declare
   profile_id int8;
-  role_id int8;
-  user_specialty tag;
 begin
-  -- Create profile
-  insert into public.profiles (id, user_id, email)
+  -- Create profile with appropriate role
+  insert into public.profiles (
+    id,
+    user_id,
+    email,
+    specialty,
+    is_admin
+  )
   values (
     (select coalesce(max(id), 0) + 1 from public.profiles),
     new.id,
-    new.email
+    new.email,
+    case
+      when new.email = 'joshua.mitchell@gauntletai.com' then 'software'::tag
+      else null
+    end,
+    new.email = 'joshua.mitchell@g.austincc.edu'
   )
   returning id into profile_id;
-
-  -- Determine specialty based on email and create role only for admin/expert
-  case
-    when new.email = 'joshua.mitchell@g.austincc.edu' then
-      -- Admin has no specialty
-      insert into public.user_roles (id, specialty, profile_id)
-      values (
-        (select coalesce(max(id), 0) + 1 from public.user_roles),
-        null,
-        profile_id
-      )
-      returning id into role_id;
-    when new.email = 'joshua.mitchell@gauntletai.com' then
-      -- Expert with software specialty
-      insert into public.user_roles (id, specialty, profile_id)
-      values (
-        (select coalesce(max(id), 0) + 1 from public.user_roles),
-        'software'::tag,
-        profile_id
-      )
-      returning id into role_id;
-    else
-      -- Students don't get a user role
-      null;
-  end case;
 
   return new;
 end;
@@ -300,6 +254,338 @@ $$ language plpgsql security definer;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- Create function to create auth user with proper error handling
+create or replace function public.create_seed_auth_user(
+  user_email text,
+  is_admin boolean default false,
+  user_specialty tag default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = auth, public
+as $$
+declare
+  new_user_id uuid;
+begin
+  -- Insert into auth.users with minimal required fields for magic link auth
+  insert into auth.users (
+    instance_id,
+    id,
+    aud,
+    role,
+    email,
+    email_confirmed_at,
+    created_at,
+    updated_at,
+    raw_app_meta_data,
+    raw_user_meta_data,
+    is_sso_user,
+    encrypted_password
+  ) values (
+    '00000000-0000-0000-0000-000000000000',
+    gen_random_uuid(),
+    'authenticated',
+    'authenticated',
+    user_email,
+    now(), -- Pre-confirm email for magic link
+    now(),
+    now(),
+    '{"provider":"email","providers":["email"]}',
+    jsonb_build_object(
+      'is_admin', is_admin,
+      'specialty', user_specialty
+    ),
+    false,
+    '' -- No password needed for magic link
+  ) returning id into new_user_id;
+
+  return new_user_id;
+exception
+  when unique_violation then
+    -- If user already exists, get their ID
+    select id into new_user_id from auth.users where email = user_email;
+    return new_user_id;
+  when others then
+    raise exception 'Failed to create auth user: %', sqlerrm;
+end;
+$$;
+
+-- Create function to seed initial data
+create or replace function public.seed_initial_data()
+returns void
+language plpgsql
+security definer
+as $$
+declare
+  admin_id uuid;
+  expert_id uuid;
+  student_id uuid;
+  admin_profile_id int8;
+  expert_profile_id int8;
+  student_profile_id int8;
+begin
+  -- Create auth users in a transaction
+  begin
+    -- Create admin user
+    admin_id := public.create_seed_auth_user(
+      'joshua.mitchell@g.austincc.edu',
+      true,
+      null
+    );
+    
+    -- Create expert user
+    expert_id := public.create_seed_auth_user(
+      'joshua.mitchell@gauntletai.com',
+      false,
+      'software'
+    );
+    
+    -- Create student user
+    student_id := public.create_seed_auth_user(
+      'jlelonmitchell@gmail.com',
+      false,
+      null
+    );
+
+    -- Get profile IDs
+    select id into admin_profile_id
+    from public.profiles p
+    where p.user_id = admin_id;
+
+    select id into expert_profile_id
+    from public.profiles p
+    where p.user_id = expert_id;
+
+    select id into student_profile_id
+    from public.profiles p
+    where p.user_id = student_id;
+
+    -- Create sources
+    insert into public.sources (id, title, URL, created_by)
+    values
+      ('00000000-0000-0000-0000-000000000001'::uuid, 'Introduction to Algorithms', 'https://www.youtube.com/watch?v=example1', expert_profile_id),
+      ('00000000-0000-0000-0000-000000000002'::uuid, 'Data Structures Basics', 'https://www.youtube.com/watch?v=example2', expert_profile_id),
+      ('00000000-0000-0000-0000-000000000003'::uuid, 'Understanding Big O Notation', 'https://www.youtube.com/watch?v=example3', expert_profile_id),
+      ('00000000-0000-0000-0000-000000000004'::uuid, 'Machine Learning Fundamentals', 'https://www.youtube.com/watch?v=example4', expert_profile_id);
+
+    -- Create requests
+    insert into public.requests (
+      id,
+      created_at,
+      accepted_at,
+      started_at,
+      finished_at,
+      source_id,
+      content_type,
+      tag,
+      student_id,
+      expert_id
+    )
+    values
+      (
+        '00000000-0000-0000-0000-000000000101'::uuid,
+        now() - interval '3 days',
+        null,
+        null,
+        null,
+        null,
+        'tutorial',
+        'software',
+        student_profile_id,
+        null
+      ),
+      (
+        '00000000-0000-0000-0000-000000000102'::uuid,
+        now() - interval '2 days',
+        now() - interval '1 day',
+        null,
+        null,
+        null,
+        'explanation',
+        'ai',
+        student_profile_id,
+        expert_profile_id
+      ),
+      (
+        '00000000-0000-0000-0000-000000000103'::uuid,
+        now() - interval '5 days',
+        now() - interval '4 days',
+        now() - interval '3 days',
+        null,
+        '00000000-0000-0000-0000-000000000001'::uuid,
+        'how_to_guide',
+        'math',
+        student_profile_id,
+        expert_profile_id
+      ),
+      (
+        '00000000-0000-0000-0000-000000000104'::uuid,
+        now() - interval '10 days',
+        now() - interval '9 days',
+        now() - interval '8 days',
+        now() - interval '1 day',
+        '00000000-0000-0000-0000-000000000002'::uuid,
+        'reference',
+        'software',
+        student_profile_id,
+        expert_profile_id
+      );
+
+    -- Create curriculums
+    insert into public.curriculums (id, request_id)
+    values
+      ('00000000-0000-0000-0000-000000000201'::uuid, '00000000-0000-0000-0000-000000000103'::uuid),
+      ('00000000-0000-0000-0000-000000000202'::uuid, '00000000-0000-0000-0000-000000000104'::uuid);
+
+    -- Create curriculum nodes
+    insert into public.curriculum_nodes (
+      id,
+      curriculum_id,
+      source_id,
+      level,
+      index_in_curriculum,
+      start_time,
+      end_time
+    )
+    values
+      -- In-progress request curriculum
+      (
+        '00000000-0000-0000-0000-000000000301'::uuid,
+        '00000000-0000-0000-0000-000000000201'::uuid,
+        '00000000-0000-0000-0000-000000000001'::uuid,
+        0,
+        0,
+        0,
+        300
+      ),
+      (
+        '00000000-0000-0000-0000-000000000302'::uuid,
+        '00000000-0000-0000-0000-000000000201'::uuid,
+        '00000000-0000-0000-0000-000000000002'::uuid,
+        1,
+        1,
+        0,
+        240
+      ),
+      (
+        '00000000-0000-0000-0000-000000000303'::uuid,
+        '00000000-0000-0000-0000-000000000201'::uuid,
+        '00000000-0000-0000-0000-000000000003'::uuid,
+        2,
+        2,
+        0,
+        180
+      ),
+      -- Finished request curriculum
+      (
+        '00000000-0000-0000-0000-000000000304'::uuid,
+        '00000000-0000-0000-0000-000000000202'::uuid,
+        '00000000-0000-0000-0000-000000000002'::uuid,
+        0,
+        0,
+        0,
+        360
+      ),
+      (
+        '00000000-0000-0000-0000-000000000305'::uuid,
+        '00000000-0000-0000-0000-000000000202'::uuid,
+        '00000000-0000-0000-0000-000000000003'::uuid,
+        1,
+        1,
+        0,
+        240
+      ),
+      (
+        '00000000-0000-0000-0000-000000000306'::uuid,
+        '00000000-0000-0000-0000-000000000202'::uuid,
+        '00000000-0000-0000-0000-000000000004'::uuid,
+        1,
+        2,
+        120,
+        300
+      );
+
+    -- Create messages
+    insert into public.messages (id, request_id, content, sender_id, created_at)
+    values
+      -- Messages for not accepted request
+      (
+        1,
+        '00000000-0000-0000-0000-000000000101'::uuid,
+        'I need help understanding software design patterns',
+        student_profile_id,
+        now() - interval '3 days'
+      ),
+      -- Messages for not started request
+      (
+        2,
+        '00000000-0000-0000-0000-000000000102'::uuid,
+        'Could you explain neural networks to me?',
+        student_profile_id,
+        now() - interval '2 days'
+      ),
+      (
+        3,
+        '00000000-0000-0000-0000-000000000102'::uuid,
+        'I''d be happy to help with that',
+        expert_profile_id,
+        now() - interval '1 day'
+      ),
+      -- Messages for in-progress request
+      (
+        4,
+        '00000000-0000-0000-0000-000000000103'::uuid,
+        'I need a guide on calculus fundamentals',
+        student_profile_id,
+        now() - interval '5 days'
+      ),
+      (
+        5,
+        '00000000-0000-0000-0000-000000000103'::uuid,
+        'I can help you with that. Let''s start with the basics',
+        expert_profile_id,
+        now() - interval '4 days'
+      ),
+      (
+        6,
+        '00000000-0000-0000-0000-000000000103'::uuid,
+        'Here''s your first set of materials to review',
+        expert_profile_id,
+        now() - interval '3 days'
+      ),
+      -- Messages for finished request
+      (
+        7,
+        '00000000-0000-0000-0000-000000000104'::uuid,
+        'I need a reference for data structures',
+        student_profile_id,
+        now() - interval '10 days'
+      ),
+      (
+        8,
+        '00000000-0000-0000-0000-000000000104'::uuid,
+        'I can help you with that. Here''s a comprehensive guide',
+        expert_profile_id,
+        now() - interval '9 days'
+      ),
+      (
+        9,
+        '00000000-0000-0000-0000-000000000104'::uuid,
+        'Thanks! This is exactly what I needed',
+        student_profile_id,
+        now() - interval '2 days'
+      );
+  exception
+    when others then
+      raise exception 'Failed to seed data: %', sqlerrm;
+  end;
+end;
+$$;
+
+-- Call seed function at the end of migration
+select public.seed_initial_data();
 
 -- Create function to create seed user
 create or replace function public.create_seed_user(username text, password text)
