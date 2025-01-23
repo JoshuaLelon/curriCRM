@@ -269,6 +269,48 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
+-- Create function to create seed user
+create or replace function public.create_seed_user(username text, password text)
+returns void
+language plpgsql
+security definer
+as $$
+begin
+  execute format('create user %I with password %L', username, password);
+  execute format('grant usage on schema public to %I', username);
+  execute format('grant all privileges on all tables in schema public to %I', username);
+  execute format('grant all privileges on all sequences in schema public to %I', username);
+  execute format('grant all privileges on all functions in schema public to %I', username);
+end;
+$$;
+
+-- Create function to drop and recreate schema
+create or replace function public.drop_and_recreate_schema()
+returns void
+language plpgsql
+security definer
+as $$
+begin
+  drop schema if exists public cascade;
+  create schema public;
+  grant usage on schema public to postgres, anon, authenticated, service_role;
+  grant all privileges on all tables in schema public to postgres, anon, authenticated, service_role;
+  grant all privileges on all sequences in schema public to postgres, anon, authenticated, service_role;
+  grant all privileges on all functions in schema public to postgres, anon, authenticated, service_role;
+end;
+$$;
+
+-- Create function to run arbitrary SQL
+create or replace function public.run_sql(sql text)
+returns void
+language plpgsql
+security definer
+as $$
+begin
+  execute sql;
+end;
+$$;
+
 -- Grant permissions
 grant usage on schema public to service_role, anon, authenticated;
 grant all privileges on all tables in schema public to service_role;

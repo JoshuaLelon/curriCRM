@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "es2017",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "outDir": "dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "allowJs": true
+  },
+  "ts-node": {
+    "files": true,
+    "esm": true,
+    "experimentalSpecifierResolution": "node"
+  },
+  "include": ["supabase/**/*.ts"],
+  "exclude": ["node_modules"]
+} 
