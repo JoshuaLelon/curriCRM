@@ -1,138 +1,162 @@
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, useEffect, useState } from "react"
 import UserHeader from "@/components/user-header"
 import RequestDetails from "@/components/request-details"
 import CurriculumViewTable from "@/components/curriculum-view-table"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import ReactFlow, { type Node, type Edge, Background, Controls, MiniMap, useNodesState, useEdgesState } from "reactflow"
+import ReactFlow, {
+  type Node,
+  type Edge,
+  Background,
+  Controls,
+  MiniMap,
+  useNodesState,
+  useEdgesState,
+  addEdge,
+  type Connection,
+  type OnConnect
+} from "reactflow"
 import "reactflow/dist/style.css"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
-// This would normally come from an API or database
-const mockData = {
-  user: {
-    id: "123e4567-e89b-12d3-a456-426614174000",
-    email: "student@example.com",
-  },
-  request: {
-    id: "123e4567-e89b-12d3-a456-426614174001",
-    source: {
-      title: "Introduction to Neural Networks",
-      url: "https://example.com/neural-networks",
-      id: "123e4567-e89b-12d3-a456-426614174099",
-    },
-    status: "finished",
-    type: "tutorial",
-    tag: "ai",
-    startTime: 180,
-    endTime: 300,
-    created_at: "2024-03-15T10:00:00Z",
-    finished_at: "2024-03-16T15:00:00Z",
-  },
-  curriculum: {
-    nodes: [
-      {
-        id: "123e4567-e89b-12d3-a456-426614174014",
-        source: {
-          id: "123e4567-e89b-12d3-a456-426614174098",
-          title: "Basic Math for Neural Networks",
-          url: "https://example.com/neural-networks-math",
-        },
-        startTime: 0,
-        endTime: 150,
-        level: 0,
-        index: 0,
-      },
-      {
-        id: "123e4567-e89b-12d3-a456-426614174015",
-        source: {
-          id: "123e4567-e89b-12d3-a456-426614174099",
-          title: "Introduction to Neural Networks",
-          url: "https://example.com/neural-networks",
-        },
-        startTime: 180,
-        endTime: 300,
-        level: 1,
-        index: 1,
-      },
-      {
-        id: "123e4567-e89b-12d3-a456-426614174016",
-        source: {
-          id: "123e4567-e89b-12d3-a456-426614174100",
-          title: "Activation Functions Deep Dive",
-          url: "https://example.com/activation-functions",
-        },
-        startTime: 320,
-        endTime: 450,
-        level: 2,
-        index: 2,
-      },
-      {
-        id: "123e4567-e89b-12d3-a456-426614174017",
-        source: {
-          id: "123e4567-e89b-12d3-a456-426614174101",
-          title: "Backpropagation Fundamentals",
-          url: "https://example.com/backpropagation",
-        },
-        startTime: 460,
-        endTime: 600,
-        level: 2,
-        index: 3,
-      },
-      {
-        id: "123e4567-e89b-12d3-a456-426614174018",
-        source: {
-          id: "123e4567-e89b-12d3-a456-426614174102",
-          title: "Advanced Neural Network Architectures",
-          url: "https://example.com/advanced-architectures",
-        },
-        startTime: 620,
-        endTime: 800,
-        level: 3,
-        index: 4,
-      },
-    ],
-  },
+interface CurriculumNode {
+  id: string
+  source: {
+    id: string
+    title: string
+    URL: string
+  }
+  start_time: number
+  end_time: number
+  level: number
+  index_in_curriculum: number
 }
 
-const initialNodes: Node[] = mockData.curriculum.nodes.map((node, index) => ({
-  id: node.id,
-  data: { label: `Source ${String.fromCharCode(65 + index)}` },
-  position: { x: 250 * index, y: 100 * node.level },
-  type: "default",
-}))
+interface Request {
+  id: string
+  source: {
+    id: string
+    title: string
+    URL: string
+  } | null
+  content_type: string
+  tag: string
+  created_at: string
+  finished_at: string | null
+  expert: {
+    id: string
+    email: string
+  } | null
+  curriculum: {
+    id: string
+    curriculum_nodes: CurriculumNode[]
+  } | null
+}
 
-const initialEdges: Edge[] = mockData.curriculum.nodes.slice(0, -1).map((node, index) => ({
-  id: `e${index}-${index + 1}`,
-  source: node.id,
-  target: mockData.curriculum.nodes[index + 1].id,
-  type: "smoothstep",
-}))
+export default function StudentFinishedRequestPage({
+  params,
+}: {
+  params: { id: string }
+}) {
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [user, setUser] = useState<{ email: string } | null>(null)
+  const [request, setRequest] = useState<Request | null>(null)
+  const supabase = createClientComponentClient()
 
-export default function StudentFinishedRequestPage() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
+  useEffect(() => {
+    async function loadData() {
+      try {
+        // Get current user
+        const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser()
+        if (userError) throw userError
 
-  const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), [setEdges])
+        if (!currentUser) {
+          window.location.href = "/login"
+          return
+        }
+
+        setUser({ email: currentUser.email || "" })
+
+        // Get request data
+        const response = await fetch(`/api/requests/${params.id}`)
+        if (!response.ok) throw new Error("Failed to fetch request")
+        const { data, error: requestError } = await response.json()
+        if (requestError) throw requestError
+
+        setRequest(data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
+  }, [supabase, params.id])
+
+  if (loading) {
+    return <div className="min-h-screen bg-white flex items-center justify-center">Loading...</div>
+  }
+
+  if (error || !request) {
+    return <div className="min-h-screen bg-white flex items-center justify-center text-red-500">{error || "Request not found"}</div>
+  }
+
+  const getTimeElapsed = (dateString: string) => {
+    const created = new Date(dateString)
+    const now = new Date()
+    const diffDays = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24))
+    return `${diffDays} days`
+  }
+
+  // Create nodes and edges for ReactFlow
+  const nodes: Node[] = request.curriculum?.curriculum_nodes.map((node, index) => ({
+    id: node.id,
+    data: { label: `Source ${String.fromCharCode(65 + index)}` },
+    position: { x: 250 * index, y: 100 * node.level },
+    type: "default",
+  })) || []
+
+  const edges: Edge[] = []
+  if (request.curriculum?.curriculum_nodes) {
+    for (let i = 0; i < request.curriculum.curriculum_nodes.length - 1; i++) {
+      edges.push({
+        id: `e${i}-${i + 1}`,
+        source: request.curriculum.curriculum_nodes[i].id,
+        target: request.curriculum.curriculum_nodes[i + 1].id,
+        type: "smoothstep",
+      })
+    }
+  }
+
+  const [flowNodes, setNodes, onNodesChange] = useNodesState(nodes)
+  const [flowEdges, setEdges, onEdgesChange] = useEdgesState(edges)
+
+  const onConnect: OnConnect = useCallback(
+    (connection) => setEdges((eds) => addEdge(connection, eds)),
+    [setEdges]
+  )
 
   return (
     <div className="min-h-screen bg-white">
-      <UserHeader email={mockData.user.email} userType="Student" />
+      <UserHeader email={user?.email || ""} userType="Student" />
       <main className="container mx-auto py-8 px-4 space-y-6">
         <RequestDetails
-          source={mockData.request.source.title}
-          tag={mockData.request.tag}
-          requestType={mockData.request.type}
-          timeElapsed="7 days"
-          positionInLine="N/A"
-          status={mockData.request.status}
-          expertAssigned="Randall"
+          source={request.source?.title || "No source"}
+          tag={request.tag}
+          requestType={request.content_type.replace("_", " ")}
+          timeElapsed={getTimeElapsed(request.created_at)}
+          positionInLine={null}
+          status="finished"
+          expertAssigned={request.expert?.email.split("@")[0] || "Not assigned"}
         />
         <div style={{ height: "400px", border: "1px solid #ddd" }}>
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={flowNodes}
+            edges={flowEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
@@ -143,7 +167,7 @@ export default function StudentFinishedRequestPage() {
             <MiniMap />
           </ReactFlow>
         </div>
-        <CurriculumViewTable nodes={mockData.curriculum.nodes} />
+        <CurriculumViewTable nodes={request.curriculum?.curriculum_nodes || []} />
         <div className="flex justify-center">
           <Link href="/student-home">
             <Button className="bg-[#7C8CFF] hover:bg-[#666ECC] text-white">Home</Button>

@@ -7,12 +7,12 @@ interface CurriculumNode {
   source: {
     id: string
     title: string
-    url: string
+    URL: string
   }
-  startTime: number
-  endTime: number
+  start_time: number
+  end_time: number
   level: number
-  index: number
+  index_in_curriculum: number
 }
 
 interface CurriculumViewTableProps {
@@ -42,12 +42,12 @@ export default function CurriculumViewTable({ nodes }: CurriculumViewTableProps)
             <TableRow key={node.id}>
               <TableCell>{`Source ${String.fromCharCode(65 + index)}`}</TableCell>
               <TableCell>
-                <a href={node.source.url} className="text-blue-600 hover:underline">
-                  {node.source.url}
+                <a href={node.source.URL} className="text-blue-600 hover:underline">
+                  {node.source.URL}
                 </a>
               </TableCell>
-              <TableCell>{formatTime(node.startTime)}</TableCell>
-              <TableCell>{formatTime(node.endTime)}</TableCell>
+              <TableCell>{formatTime(node.start_time)}</TableCell>
+              <TableCell>{formatTime(node.end_time)}</TableCell>
             </TableRow>
           ))}
         </TableBody>
