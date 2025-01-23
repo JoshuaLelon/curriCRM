@@ -77,14 +77,7 @@ export default function StudentRequestsTable({ requests }: StudentRequestsTableP
   }
 
   const handleRequestClick = (request: Request) => {
-    const status = getStatus(request)
-    if (status === "finished") {
-      router.push(`/student-request/${request.id}/finished`)
-    } else if (status === "not_accepted") {
-      router.push("/student-new-request")
-    } else {
-      router.push(`/student-request/${request.id}/in-progress`)
-    }
+    router.push(`/request/${request.id}`)
   }
 
   return (

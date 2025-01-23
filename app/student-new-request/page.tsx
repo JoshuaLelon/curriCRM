@@ -25,7 +25,7 @@ export default function StudentNewRequest() {
         if (userError) throw userError
 
         if (!currentUser) {
-          window.location.href = "/login"
+          router.push("/login")
           return
         }
 
@@ -38,7 +38,7 @@ export default function StudentNewRequest() {
     }
 
     loadData()
-  }, [supabase])
+  }, [supabase, router])
 
   const handleSubmit = async (formData: any) => {
     try {
@@ -86,7 +86,7 @@ export default function StudentNewRequest() {
         throw new Error("Failed to create request")
       }
 
-      router.push("/student-home")
+      router.push("/home")
     } catch (error) {
       console.error("Error creating request:", error)
       alert("Failed to create request")

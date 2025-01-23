@@ -3,16 +3,14 @@
 import { useState, FormEvent } from "react"
 import { createBrowserSupabaseClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 interface LoginPageProps {
-  userType: "admin" | "expert" | "student"
-  alternateLogins: string[]
+  userType: string
 }
 
-export default function LoginPage({ userType, alternateLogins }: LoginPageProps) {
+export default function LoginPage({ userType }: LoginPageProps) {
   const supabase = createBrowserSupabaseClient()
   const [email, setEmail] = useState("")
   const router = useRouter()
@@ -28,7 +26,6 @@ export default function LoginPage({ userType, alternateLogins }: LoginPageProps)
       },
     })
     if (!error) {
-      // Show success notification or simply redirect
       setShowNotification(true)
       setTimeout(() => setShowNotification(false), 3000)
       router.push('/login?check_inbox=1')
@@ -43,7 +40,7 @@ export default function LoginPage({ userType, alternateLogins }: LoginPageProps)
 
       <div className="w-full max-w-sm bg-[#E6F4FF] p-6 rounded-lg">
         <h2 className="text-xl font-medium text-center mb-4">
-          {userType.charAt(0).toUpperCase() + userType.slice(1)} Login
+          Sign In
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -65,16 +62,6 @@ export default function LoginPage({ userType, alternateLogins }: LoginPageProps)
       {showNotification && (
         <div className="mt-4 text-green-600 bg-green-50 px-4 py-2 rounded">Link sent to your email</div>
       )}
-
-      <div className="mt-6 space-x-4">
-        {alternateLogins.map((loginType) => (
-          <Link key={loginType} href={`/${loginType}-login`}>
-            <Button variant="secondary" className="bg-[#7C8CFF] hover:bg-[#666ECC] text-white">
-              {loginType.charAt(0).toUpperCase() + loginType.slice(1)} Login
-            </Button>
-          </Link>
-        ))}
-      </div>
     </div>
   )
 }

@@ -18,7 +18,7 @@ export function useExpertRequests(initialRequests: Request[]) {
   const router = useRouter()
 
   const handleRequestClick = (request: Request) => {
-    router.push(`/expert-request/${request.id}`)
+    router.push(`/request/${request.id}`)
   }
 
   const handleAdvance = (requestId: string) => {

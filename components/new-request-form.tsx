@@ -111,7 +111,7 @@ export default function NewRequestForm({ availableTypes, availableTags, onSubmit
       </div>
 
       <div className="flex justify-center gap-4 pt-4">
-        <Link href="/student-home">
+        <Link href="/home">
           <Button variant="outline">Home</Button>
         </Link>
         <Button type="submit" className="bg-[#7C8CFF] hover:bg-[#666ECC] text-white">
