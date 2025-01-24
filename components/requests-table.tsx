@@ -1,21 +1,27 @@
 "use client"
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import type { Request } from "@/types/request"
+import type { Request, Profile } from "@/types"
 import { getRequestStatus, getStatusLabel } from "@/utils/request-status"
 
 interface RequestsTableProps {
   requests: Request[]
+  experts?: Profile[]
   onRequestClick: (request: Request) => void
+  onExpertChange?: (requestId: string, expertId: string) => void
+  onDeleteRequest?: (requestId: string) => void
   showPositionInLine?: boolean
-  actions?: (request: Request) => React.ReactNode
+  isAdmin?: boolean
 }
 
 export default function RequestsTable({
   requests,
+  experts,
   onRequestClick,
+  onExpertChange,
+  onDeleteRequest,
   showPositionInLine = false,
-  actions
+  isAdmin = false
 }: RequestsTableProps) {
   const getTimeElapsed = (dateString: string) => {
     const created = new Date(dateString)
@@ -50,7 +56,9 @@ export default function RequestsTable({
             <TableHead>Time Elapsed</TableHead>
             {showPositionInLine && <TableHead>Position in Line</TableHead>}
             <TableHead>Status</TableHead>
-            {actions && <TableHead>Action</TableHead>}
+            {(onExpertChange || onDeleteRequest) && (
+              <TableHead>{isAdmin ? "Expert Assigned" : "Actions"}</TableHead>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -86,9 +94,32 @@ export default function RequestsTable({
                     {getStatusLabel(status)}
                   </span>
                 </TableCell>
-                {actions && (
+                {(onExpertChange || onDeleteRequest) && (
                   <TableCell onClick={(e) => e.stopPropagation()}>
-                    {actions(request)}
+                    <div className="flex gap-2">
+                      {onExpertChange && experts && (
+                        <select
+                          className="border rounded px-2 py-1"
+                          value={request.expert_id?.toString() || ""}
+                          onChange={(e) => onExpertChange(request.id, e.target.value)}
+                        >
+                          <option value="">Select Expert</option>
+                          {experts.map((expert) => (
+                            <option key={expert.id} value={expert.id}>
+                              {expert.email}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      {onDeleteRequest && (
+                        <button
+                          className="text-red-600 hover:text-red-800"
+                          onClick={() => onDeleteRequest(request.id)}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
                   </TableCell>
                 )}
               </TableRow>

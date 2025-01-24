@@ -49,6 +49,8 @@ export default function HomePage() {
           .eq("user_id", currentUser.id)
         if (profileError) throw profileError
 
+        console.log('Found profiles:', profiles)
+
         // Use the first profile or create one if none exists
         let profile = profiles?.[0]
         if (!profile) {
@@ -66,7 +68,7 @@ export default function HomePage() {
           profile = newProfile
         }
 
-        console.log('Profile data:', profile)
+        console.log('Using profile:', profile)
 
         // Determine role based on profile fields
         const role = profile.is_admin ? "admin" : profile.specialty ? "expert" : "student"
@@ -125,6 +127,10 @@ export default function HomePage() {
                 email,
                 specialty,
                 is_admin
+              ),
+              curriculum:curriculums!curriculums_request_id_fkey (
+                *,
+                curriculum_nodes (*)
               )
             `)
         }
@@ -139,12 +145,13 @@ export default function HomePage() {
 
         // Load experts list if admin
         if (role === "admin") {
+          console.log('Loading experts for admin')
           const { data: expertsData, error: expertsError } = await supabase
             .from("profiles")
             .select("*")
             .not("specialty", "is", null)
-            .or("is_admin.eq.true")
           if (expertsError) throw expertsError
+          console.log('Found experts:', expertsData)
           setExperts(expertsData)
         }
       } catch (err) {

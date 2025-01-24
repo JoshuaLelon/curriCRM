@@ -13,7 +13,7 @@ export interface Profile {
 }
 
 export interface Source {
-  id: number
+  id: string
   title: string
   url: string
   created_by: number
@@ -24,15 +24,15 @@ export interface Message {
   id: number
   content: string
   created_at: string
-  request_id: number
+  request_id: string
   sender_id: number
   sender?: Profile
 }
 
 export interface CurriculumNode {
-  id: number
-  curriculum_id: number
-  source_id: number
+  id: string
+  curriculum_id: string
+  source_id: string
   start_time: number
   end_time: number
   level: number
@@ -42,21 +42,23 @@ export interface CurriculumNode {
 }
 
 export interface Request {
-  id: number
+  id: string
   student_id: number
   expert_id: number | null
-  source_id: number
+  source_id: string | null
   content_type: ContentType
   tag: Tag
   created_at: string
   accepted_at: string | null
   started_at: string | null
   finished_at: string | null
+  start_time: number | null
+  end_time: number | null
   source?: Source | null
   expert?: Profile | null
   student?: Profile
   curriculum?: {
-    id: number
+    id: string
     curriculum_nodes: CurriculumNode[]
   }
   messages?: Message[]
