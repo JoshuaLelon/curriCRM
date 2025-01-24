@@ -65,7 +65,7 @@ export default function HomePage() {
         // Load relevant requests based on role
         let requestsQuery
         if (role === "student") {
-          console.log('Making student query with profile ID:', profile.id)
+          console.log('Making student query')
           requestsQuery = supabase
             .from("requests")
             .select(`
@@ -78,7 +78,6 @@ export default function HomePage() {
                 is_admin
               )
             `)
-            .eq("student_id", profile.id)
         } else if (role === "expert") {
           requestsQuery = supabase
             .from("requests")

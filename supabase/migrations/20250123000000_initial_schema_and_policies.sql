@@ -131,6 +131,8 @@ create policy "Experts can create sources"
 drop policy if exists "Students can view their own requests" on public.requests;
 drop policy if exists "Experts can view assigned requests" on public.requests;
 drop policy if exists "Admins can view all requests" on public.requests;
+drop policy if exists "Authenticated users can view requests" on public.requests;
+drop policy if exists "Users can view their own requests" on public.requests;
 
 create policy "Authenticated users can view requests"
   on public.requests for select
@@ -388,8 +390,10 @@ as $$
 declare
   admin_id uuid;
   expert_id uuid;
+  student_id uuid;
   admin_profile_id int8;
   expert_profile_id int8;
+  student_profile_id int8;
 begin
   -- Create auth users in a transaction
   begin
@@ -407,6 +411,13 @@ begin
       'software'
     );
 
+    -- Create student user
+    student_id := public.create_seed_auth_user(
+      'student@example.com',
+      false,
+      null
+    );
+
     -- Get profile IDs
     select id into admin_profile_id
     from public.profiles p
@@ -415,6 +426,10 @@ begin
     select id into expert_profile_id
     from public.profiles p
     where p.user_id = expert_id;
+
+    select id into student_profile_id
+    from public.profiles p
+    where p.user_id = student_id;
 
     -- Create sources
     insert into public.sources (id, title, URL, created_by)
@@ -447,7 +462,7 @@ begin
         null,
         'tutorial'::public.content_type,
         'software'::public.tag,
-        null,
+        student_profile_id,
         expert_profile_id
       ),
       (
@@ -459,7 +474,7 @@ begin
         null,
         'explanation'::public.content_type,
         'ai'::public.tag,
-        null,
+        student_profile_id,
         expert_profile_id
       ),
       (
@@ -471,7 +486,7 @@ begin
         '00000000-0000-0000-0000-000000000001'::uuid,
         'how_to_guide'::public.content_type,
         'math'::public.tag,
-        null,
+        student_profile_id,
         expert_profile_id
       ),
       (
@@ -483,7 +498,7 @@ begin
         '00000000-0000-0000-0000-000000000002'::uuid,
         'reference'::public.content_type,
         'software'::public.tag,
-        null,
+        student_profile_id,
         expert_profile_id
       );
 
@@ -498,142 +513,66 @@ begin
       id,
       curriculum_id,
       source_id,
-      level,
-      index_in_curriculum,
       start_time,
-      end_time
+      end_time,
+      level,
+      index_in_curriculum
     )
     values
-      -- In-progress request curriculum
       (
         '00000000-0000-0000-0000-000000000301'::uuid,
         '00000000-0000-0000-0000-000000000201'::uuid,
         '00000000-0000-0000-0000-000000000001'::uuid,
         0,
-        0,
-        0,
-        300
+        300,
+        1,
+        1
       ),
       (
         '00000000-0000-0000-0000-000000000302'::uuid,
         '00000000-0000-0000-0000-000000000201'::uuid,
         '00000000-0000-0000-0000-000000000002'::uuid,
-        1,
-        1,
         0,
-        240
+        300,
+        2,
+        2
       ),
       (
         '00000000-0000-0000-0000-000000000303'::uuid,
-        '00000000-0000-0000-0000-000000000201'::uuid,
+        '00000000-0000-0000-0000-000000000202'::uuid,
         '00000000-0000-0000-0000-000000000003'::uuid,
-        2,
-        2,
         0,
-        180
+        300,
+        1,
+        1
       ),
-      -- Finished request curriculum
       (
         '00000000-0000-0000-0000-000000000304'::uuid,
         '00000000-0000-0000-0000-000000000202'::uuid,
-        '00000000-0000-0000-0000-000000000002'::uuid,
-        0,
-        0,
-        0,
-        360
-      ),
-      (
-        '00000000-0000-0000-0000-000000000305'::uuid,
-        '00000000-0000-0000-0000-000000000202'::uuid,
-        '00000000-0000-0000-0000-000000000003'::uuid,
-        1,
-        1,
-        0,
-        240
-      ),
-      (
-        '00000000-0000-0000-0000-000000000306'::uuid,
-        '00000000-0000-0000-0000-000000000202'::uuid,
         '00000000-0000-0000-0000-000000000004'::uuid,
-        1,
+        0,
+        300,
         2,
-        120,
-        300
+        2
       );
 
     -- Create messages
-    insert into public.messages (id, request_id, content, sender_id, created_at)
+    insert into public.messages (
+      id,
+      request_id,
+      content,
+      sender_id
+    )
     values
-      -- Messages for not accepted request
-      (
-        1,
-        '00000000-0000-0000-0000-000000000101'::uuid,
-        'I need help understanding software design patterns',
-        null,
-        now() - interval '3 days'
-      ),
-      -- Messages for not started request
-      (
-        2,
-        '00000000-0000-0000-0000-000000000102'::uuid,
-        'Could you explain neural networks to me?',
-        null,
-        now() - interval '2 days'
-      ),
-      (
-        3,
-        '00000000-0000-0000-0000-000000000102'::uuid,
-        'I''d be happy to help with that',
-        expert_profile_id,
-        now() - interval '1 day'
-      ),
-      -- Messages for in-progress request
-      (
-        4,
-        '00000000-0000-0000-0000-000000000103'::uuid,
-        'I need a guide on calculus fundamentals',
-        null,
-        now() - interval '5 days'
-      ),
-      (
-        5,
-        '00000000-0000-0000-0000-000000000103'::uuid,
-        'I can help you with that. Let''s start with the basics',
-        expert_profile_id,
-        now() - interval '4 days'
-      ),
-      (
-        6,
-        '00000000-0000-0000-0000-000000000103'::uuid,
-        'Here''s your first set of materials to review',
-        expert_profile_id,
-        now() - interval '3 days'
-      ),
-      -- Messages for finished request
-      (
-        7,
-        '00000000-0000-0000-0000-000000000104'::uuid,
-        'I need a reference for data structures',
-        null,
-        now() - interval '10 days'
-      ),
-      (
-        8,
-        '00000000-0000-0000-0000-000000000104'::uuid,
-        'I can help you with that. Here''s a comprehensive guide',
-        expert_profile_id,
-        now() - interval '9 days'
-      ),
-      (
-        9,
-        '00000000-0000-0000-0000-000000000104'::uuid,
-        'Thanks! This is exactly what I needed',
-        null,
-        now() - interval '2 days'
-      );
+      (1, '00000000-0000-0000-0000-000000000103'::uuid, 'Hi, I need help understanding this concept.', student_profile_id),
+      (2, '00000000-0000-0000-0000-000000000103'::uuid, 'Sure, I can help you with that.', expert_profile_id),
+      (3, '00000000-0000-0000-0000-000000000104'::uuid, 'Could you explain this in more detail?', student_profile_id),
+      (4, '00000000-0000-0000-0000-000000000104'::uuid, 'Here''s a detailed explanation...', expert_profile_id);
+
   exception
     when others then
-      raise exception 'Failed to seed data: %', sqlerrm;
+      raise notice 'Error in transaction: %', sqlerrm;
+      raise;
   end;
 end;
 $$;
