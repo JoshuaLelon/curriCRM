@@ -13,7 +13,7 @@ export async function updateSession(request: NextRequest) {
     const cookieOptions = {
       path: '/',
       sameSite: 'lax' as const,
-      // httpOnly: true, // Removed to allow client-side access
+      httpOnly: true, // Re-enable httpOnly for security
       secure: process.env.NODE_ENV === 'production',
       maxAge: 60 * 60 * 24 * 7 // 1 week
     }
@@ -83,7 +83,8 @@ export async function updateSession(request: NextRequest) {
       response.cookies.set({
         name: cookie.name,
         value: cookie.value,
-        ...cookieOptions
+        ...cookieOptions,
+        httpOnly: true // Ensure httpOnly is set for auth cookies
       })
     }
 

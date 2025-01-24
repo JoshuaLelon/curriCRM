@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import type { Request, CurriculumNode, Source } from "@/types/request"
 import StudentView from "@/components/request/student-view"
 import ExpertView from "@/components/request/expert-view"
 import AdminView from "@/components/request/admin-view"
+import { useSupabase } from "@/components/providers/supabase-provider"
 
 interface Profile {
   id: string
@@ -17,12 +17,12 @@ interface Profile {
 
 export default function RequestPage({ params }: { params: { id: string } }) {
   const router = useRouter()
+  const { supabase } = useSupabase()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [request, setRequest] = useState<Request | null>(null)
   const [currentUser, setCurrentUser] = useState<Profile | null>(null)
   const [experts, setExperts] = useState<Profile[]>([])
-  const supabase = createClientComponentClient()
 
   // Fetch request data and user profile
   useEffect(() => {
@@ -38,12 +38,18 @@ export default function RequestPage({ params }: { params: { id: string } }) {
         }
 
         // Get user's profile with role
-        const { data: profile, error: profileError } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("*")
           .eq("user_id", user.id)
           .single()
         if (profileError) throw profileError
+
+        // Map database fields to role
+        const profile = {
+          ...profileData,
+          role: profileData.is_admin ? "admin" : (profileData.specialty ? "expert" : "student")
+        }
 
         setCurrentUser(profile)
 
@@ -78,10 +84,14 @@ export default function RequestPage({ params }: { params: { id: string } }) {
           const { data: expertsData, error: expertsError } = await supabase
             .from("profiles")
             .select("*")
-            .eq("role", "expert")
+            .not("specialty", "is", null)
+            .eq("is_admin", false)
           if (expertsError) throw expertsError
 
-          setExperts(expertsData)
+          setExperts(expertsData.map(expert => ({
+            ...expert,
+            role: "expert"
+          })))
         }
       } catch (err) {
         console.error("Error loading data:", err)

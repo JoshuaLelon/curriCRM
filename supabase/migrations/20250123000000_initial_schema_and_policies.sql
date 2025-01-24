@@ -170,29 +170,50 @@ grant select on public.profiles to authenticated;
 grant select on public.sources to authenticated;
 grant select on public.requests to authenticated;
 
--- Curriculums policies
-create policy "Curriculums are viewable by everyone"
-  on public.curriculums for select
-  using (true);
+-- Drop existing curriculums policies
+drop policy if exists "Curriculums are viewable by everyone" on public.curriculums;
+drop policy if exists "Users can view curriculums for their requests" on public.curriculums;
+drop policy if exists "Experts can create curriculums for their requests" on public.curriculums;
+drop policy if exists "Experts can update curriculums for their requests" on public.curriculums;
+drop policy if exists "Users can view curriculums" on public.curriculums;
+drop policy if exists "Experts can create curriculums" on public.curriculums;
+drop policy if exists "Experts can update curriculums" on public.curriculums;
 
-create policy "Experts can create curriculums for their requests"
+-- Create new curriculums policies
+create policy "Authenticated users can view curriculums"
+  on public.curriculums for select
+  using (auth.role() = 'authenticated');
+
+create policy "Experts can create curriculums"
   on public.curriculums for insert
   with check (
     exists (
       select 1 from public.requests r
+      join public.profiles p on r.expert_id = p.id
       where r.id = request_id
-      and r.expert_id = (
-        select p.id from public.profiles p
-        where p.user_id = auth.uid()
-        limit 1
-      )
+      and p.user_id = auth.uid()
     )
   );
 
--- Curriculum nodes policies
-create policy "Curriculum nodes are viewable by everyone"
+create policy "Experts can update curriculums"
+  on public.curriculums for update
+  using (
+    exists (
+      select 1 from public.requests r
+      join public.profiles p on r.expert_id = p.id
+      where r.id = request_id
+      and p.user_id = auth.uid()
+    )
+  );
+
+-- Drop and recreate curriculum nodes policies
+drop policy if exists "Curriculum nodes are viewable by everyone" on public.curriculum_nodes;
+drop policy if exists "Users can view curriculum nodes" on public.curriculum_nodes;
+drop policy if exists "Experts can create curriculum nodes" on public.curriculum_nodes;
+
+create policy "Authenticated users can view curriculum nodes"
   on public.curriculum_nodes for select
-  using (true);
+  using (auth.role() = 'authenticated');
 
 create policy "Experts can create curriculum nodes"
   on public.curriculum_nodes for insert
@@ -200,59 +221,41 @@ create policy "Experts can create curriculum nodes"
     exists (
       select 1 from public.curriculums c
       join public.requests r on r.id = c.request_id
+      join public.profiles p on r.expert_id = p.id
       where c.id = curriculum_id
-      and r.expert_id = (
-        select p.id from public.profiles p
-        where p.user_id = auth.uid()
-        limit 1
-      )
+      and p.user_id = auth.uid()
     )
   );
 
--- Messages policies
-create policy "Messages are viewable by participants"
+-- Grant additional permissions for nested queries
+grant select on public.curriculums to authenticated;
+grant select on public.curriculum_nodes to authenticated;
+grant select on public.sources to authenticated;
+grant select on public.profiles to authenticated;
+grant select on public.requests to authenticated;
+
+-- Drop existing messages policies
+drop policy if exists "Messages are viewable by participants" on public.messages;
+drop policy if exists "Participants can insert messages" on public.messages;
+
+-- Create new messages policies
+create policy "Authenticated users can view messages"
   on public.messages for select
-  using (
-    exists (
-      select 1 from public.requests r
-      where r.id = request_id
-      and (
-        r.student_id = (
-          select p.id from public.profiles p
-          where p.user_id = auth.uid()
-          limit 1
-        )
-        or
-        r.expert_id = (
-          select p.id from public.profiles p
-          where p.user_id = auth.uid()
-          limit 1
-        )
-      )
-    )
-  );
+  using (auth.role() = 'authenticated');
 
 create policy "Participants can insert messages"
   on public.messages for insert
   with check (
     exists (
       select 1 from public.requests r
+      join public.profiles p on (r.student_id = p.id or r.expert_id = p.id)
       where r.id = request_id
-      and (
-        r.student_id = (
-          select p.id from public.profiles p
-          where p.user_id = auth.uid()
-          limit 1
-        )
-        or
-        r.expert_id = (
-          select p.id from public.profiles p
-          where p.user_id = auth.uid()
-          limit 1
-        )
-      )
+      and p.user_id = auth.uid()
     )
   );
+
+-- Grant additional permissions for messages
+grant select on public.messages to authenticated;
 
 -- Function to handle new user profiles
 create or replace function public.handle_new_user()
