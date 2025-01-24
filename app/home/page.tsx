@@ -142,7 +142,8 @@ export default function HomePage() {
           const { data: expertsData, error: expertsError } = await supabase
             .from("profiles")
             .select("*")
-            .eq("role", "expert")
+            .not("specialty", "is", null)
+            .or("is_admin.eq.true")
           if (expertsError) throw expertsError
           setExperts(expertsData)
         }
