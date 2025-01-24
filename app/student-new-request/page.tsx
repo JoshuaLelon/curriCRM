@@ -5,6 +5,8 @@ import UserHeader from "@/components/user-header"
 import NewRequestForm from "@/components/new-request-form"
 import { useRouter } from "next/navigation"
 import { useSupabase } from "@/components/providers/supabase-provider"
+import { Button } from "@/components/ui/button"
+import { HomeIcon } from "lucide-react"
 
 // These are the valid types and tags from the database schema
 const availableTypes = ["tutorial", "explanation", "how_to_guide", "reference"]
@@ -159,6 +161,17 @@ export default function StudentNewRequest() {
           availableTags={availableTags}
           onSubmit={handleSubmit}
         />
+        <div className="mt-8 flex justify-center">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+            onClick={() => router.push('/home')}
+          >
+            <HomeIcon className="h-4 w-4" />
+            Home
+          </Button>
+        </div>
       </main>
     </div>
   )

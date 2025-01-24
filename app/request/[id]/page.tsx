@@ -7,6 +7,8 @@ import StudentView from "@/components/request/student-view"
 import ExpertView from "@/components/request/expert-view"
 import AdminView from "@/components/request/admin-view"
 import { useSupabase } from "@/components/providers/supabase-provider"
+import { Button } from "@/components/ui/button"
+import { HomeIcon } from "@heroicons/react/24/outline"
 
 interface Profile {
   id: string
@@ -354,37 +356,58 @@ export default function RequestPage({ params }: { params: { id: string } }) {
   }
 
   // Render view based on user role
-  switch (currentUser.role) {
-    case "student":
-      return (
-        <StudentView
-          request={request}
-          currentUser={{ id: currentUser.id, role: currentUser.role }}
-          onRequestUpdate={handleRequestUpdate}
-          onRequestDelete={handleRequestDelete}
-        />
-      )
-    case "expert":
-      return (
-        <ExpertView
-          request={request}
-          currentUser={{ id: currentUser.id, role: currentUser.role }}
-          onAddNode={handleAddNode}
-          onUpdateNode={handleNodeUpdate}
-          onUpdateSource={handleSourceUpdate}
-          onSubmit={handleSubmit}
-        />
-      )
-    case "admin":
-      return (
-        <AdminView
-          request={request}
-          currentUser={{ id: currentUser.id, role: currentUser.role }}
-          experts={experts}
-          onExpertAssign={handleExpertAssign}
-        />
-      )
-    default:
-      return <div>Invalid user role</div>
+  const renderView = () => {
+    switch (currentUser.role) {
+      case "student":
+        return (
+          <StudentView
+            request={request}
+            currentUser={{ id: currentUser.id, role: currentUser.role }}
+            onRequestUpdate={handleRequestUpdate}
+            onRequestDelete={handleRequestDelete}
+          />
+        )
+      case "expert":
+        return (
+          <ExpertView
+            request={request}
+            currentUser={{ id: currentUser.id, role: currentUser.role }}
+            onAddNode={handleAddNode}
+            onUpdateNode={handleNodeUpdate}
+            onUpdateSource={handleSourceUpdate}
+            onSubmit={handleSubmit}
+          />
+        )
+      case "admin":
+        return (
+          <AdminView
+            request={request}
+            currentUser={{ id: currentUser.id, role: currentUser.role }}
+            experts={experts}
+            onExpertAssign={handleExpertAssign}
+          />
+        )
+      default:
+        return <div>Invalid user role</div>
+    }
   }
+
+  return (
+    <div className="min-h-screen bg-white">
+      <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        {renderView()}
+        <div className="mt-8 flex justify-center">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+            onClick={() => router.push('/home')}
+          >
+            <HomeIcon className="h-4 w-4" />
+            Home
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
 } 

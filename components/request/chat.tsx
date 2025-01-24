@@ -151,27 +151,37 @@ export default function Chat({ request, currentUser, onMessageSent }: ChatProps)
   return (
     <div className="space-y-4">
       <div className="border rounded-lg p-4 h-96 overflow-y-auto space-y-4">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex ${
-              msg.sender?.id === currentUser.id ? "justify-end" : "justify-start"
-            }`}
-          >
+        {messages.map((msg) => {
+          const isCurrentUser = String(msg.sender_id) === String(currentUser.id)
+          console.log('Message comparison:', {
+            msg_sender_id: msg.sender_id,
+            msg_sender_id_type: typeof msg.sender_id,
+            currentUser_id: currentUser.id,
+            currentUser_id_type: typeof currentUser.id,
+            isCurrentUser
+          })
+          return (
             <div
-              className={`max-w-[80%] p-3 rounded-lg ${
-                msg.sender?.id === currentUser.id
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-100"
+              key={msg.id}
+              className={`flex ${
+                isCurrentUser ? "justify-end" : "justify-start"
               }`}
             >
-              <div className="text-sm font-medium mb-1">
-                {msg.sender?.email?.split("@")[0]}
+              <div
+                className={`max-w-[80%] p-3 rounded-lg ${
+                  isCurrentUser
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-100"
+                }`}
+              >
+                <div className="text-sm font-medium mb-1">
+                  {msg.sender?.email?.split("@")[0]}
+                </div>
+                <div>{msg.content}</div>
               </div>
-              <div>{msg.content}</div>
             </div>
-          </div>
-        ))}
+          )
+        })}
         <div ref={messagesEndRef} />
       </div>
 
