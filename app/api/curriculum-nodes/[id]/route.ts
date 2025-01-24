@@ -1,4 +1,4 @@
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
+import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 
@@ -7,7 +7,24 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set(name, value, options)
+          },
+          remove(name: string, options: any) {
+            cookieStore.set(name, '', options)
+          },
+        },
+      }
+    )
 
     const { data, error } = await supabase
       .from("curriculum_nodes")
@@ -41,9 +58,35 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set(name, value, options)
+          },
+          remove(name: string, options: any) {
+            cookieStore.set(name, '', options)
+          },
+        },
+      }
+    )
     const json = await request.json()
     const { source, ...updateData } = json
+
+    // Get user profile
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      )
+    }
 
     // Update source if needed
     if (source) {
@@ -52,7 +95,7 @@ export async function PATCH(
         .update({
           title: source.title,
           url: source.url,
-          created_by: profile.id
+          created_by: user.id
         })
         .eq("id", source.id)
 
@@ -93,7 +136,24 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set(name, value, options)
+          },
+          remove(name: string, options: any) {
+            cookieStore.set(name, '', options)
+          },
+        },
+      }
+    )
 
     const { error } = await supabase
       .from("curriculum_nodes")

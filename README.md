@@ -1,12 +1,5 @@
 # CurriCRM
 
-## Recent Updates
-
-### 2024-01-24: Fixed Magic Link Authentication
-- Added migration to fix null email_change column in auth.users table
-- Resolved issue with magic link authentication failing for certain users
-- See `supabase/migrations/20250124000005_fix_null_email_change_column.sql` for details
-
 A curriculum management system that connects students with experts.
 
 ## Authentication
