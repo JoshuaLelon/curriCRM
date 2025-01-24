@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { SupabaseProvider } from '@/components/providers/supabase-provider'
+import AuthHeader from '@/components/auth-header'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <SupabaseProvider>
+          <AuthHeader />
           {children}
         </SupabaseProvider>
       </body>

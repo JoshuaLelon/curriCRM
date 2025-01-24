@@ -1,12 +1,11 @@
 'use client'
 
 import { useEffect, useState } from "react"
-import UserHeader from "@/components/user-header"
-import NewRequestForm from "@/components/new-request-form"
 import { useRouter } from "next/navigation"
 import { useSupabase } from "@/components/providers/supabase-provider"
 import { Button } from "@/components/ui/button"
 import { HomeIcon } from "lucide-react"
+import NewRequestForm from "@/components/new-request-form"
 
 // These are the valid types and tags from the database schema
 const availableTypes = ["tutorial", "explanation", "how_to_guide", "reference"]
@@ -153,7 +152,6 @@ export default function StudentNewRequest() {
 
   return (
     <div className="min-h-screen bg-white">
-      <UserHeader email={user?.email || ""} userType="Student" />
       <main className="container mx-auto py-8 px-4">
         <h1 className="text-2xl font-bold mb-6">New Request</h1>
         <NewRequestForm

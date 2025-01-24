@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import UserHeader from "@/components/user-header"
 import StudentHome from "@/components/home/student-home"
 import ExpertHome from "@/components/home/expert-home"
 import AdminHome from "@/components/home/admin-home"
@@ -187,7 +186,6 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <UserHeader email={user.email} userType={user.role} />
       <main className="container mx-auto py-8 px-4">
         {user.role === "student" && (
           <StudentHome requests={requests} email={user.email} />
