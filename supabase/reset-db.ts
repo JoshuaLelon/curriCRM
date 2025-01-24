@@ -3,7 +3,8 @@ import * as dotenv from 'dotenv'
 import * as path from 'path'
 import * as fs from 'fs'
 import { fileURLToPath } from 'url'
-import { createSeedUsersWithAuth } from './seed-auth-users.js'
+import pkg from 'pg'
+const { Client } = pkg
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -13,7 +14,9 @@ dotenv.config({ path: path.resolve(__dirname, "../.env.local") })
 
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL) throw new Error('NEXT_PUBLIC_SUPABASE_URL is required')
 if (!process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('SUPABASE_SERVICE_ROLE_KEY is required')
+if (!process.env.SUPABASE_DB_PASSWORD) throw new Error('SUPABASE_DB_PASSWORD is required')
 
+// Create Supabase client for checking results
 const supabaseClient = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -25,107 +28,185 @@ const supabaseClient = createClient(
   }
 )
 
-// Add process exit handler
-process.on('exit', (code) => {
-  console.log(`Process exiting with code: ${code}`)
-})
+// Extract database URL from Supabase URL
+const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL!.split('//')[1].split('.')[0]
+console.log('Project ref:', projectRef)
 
-// Add unhandled promise rejection handler
-process.on('unhandledRejection', (error) => {
-  console.error('Unhandled promise rejection:', error)
-  process.exit(1)
-})
+// Direct connection string format from Supabase docs
+const dbUrl = `postgresql://postgres:${process.env.SUPABASE_DB_PASSWORD}@${projectRef}.supabase.co:5432/postgres`
+console.log('Database URL (without password):', dbUrl.replace(process.env.SUPABASE_DB_PASSWORD!, '****'))
 
-// Add uncaught exception handler
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught exception:', error)
-  process.exit(1)
-})
+// Validation functions
+async function validateSupabaseUrl(url: string) {
+  // Basic format check
+  if (!url.startsWith('https://') || !url.endsWith('.supabase.co')) {
+    throw new Error('Invalid NEXT_PUBLIC_SUPABASE_URL format. Must start with https:// and end with .supabase.co')
+  }
+  
+  // Simple health check using REST API
+  try {
+    const response = await fetch(`${url}/rest/v1/`, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    // 401/404 are fine - they mean we reached Supabase but just don't have permission
+    if (response.status !== 401 && response.status !== 404 && !response.ok) {
+      throw new Error(`Unexpected response: ${response.status} ${response.statusText}`)
+    }
+  } catch (error) {
+    throw new Error(`Could not connect to Supabase URL: ${error}`)
+  }
+}
 
-async function executeSql(sql: string) {
-  const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/sql`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-      'Prefer': 'resolution=merge-duplicates'
-    },
-    body: sql
+async function validateServiceRoleKey(url: string, key: string) {
+  // Basic format check
+  if (!key.startsWith('eyJ') || key.length < 100) {
+    throw new Error('Invalid SUPABASE_SERVICE_ROLE_KEY format. Should be a JWT token starting with eyJ')
+  }
+  
+  // Simple auth check using REST API
+  try {
+    const response = await fetch(`${url}/rest/v1/`, {
+      headers: {
+        'apikey': key,
+        'Authorization': `Bearer ${key}`
+      }
+    })
+    
+    if (response.status === 401) {
+      throw new Error('Service role key authentication failed')
+    }
+    
+    // Any response except 401 is fine - even 404 means we authenticated but endpoint doesn't exist
+    if (!response.ok && response.status !== 404) {
+      throw new Error(`Unexpected response: ${response.status} ${response.statusText}`)
+    }
+  } catch (error) {
+    throw new Error(`Service role key check failed: ${error}`)
+  }
+}
+
+async function validateDbPassword(url: string, password: string) {
+  // Basic format check
+  if (password.length < 8) {
+    throw new Error('SUPABASE_DB_PASSWORD seems too short to be valid')
+  }
+  
+  // Simple connection test
+  const projectRef = url.split('//')[1].split('.')[0]
+  const testDbUrl = `postgresql://postgres:${password}@${projectRef}.supabase.co:5432/postgres`
+  const client = new Client({ 
+    connectionString: testDbUrl,
+    ssl: {
+      rejectUnauthorized: false
+    }
   })
   
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(`SQL execution failed: ${JSON.stringify(error)}`)
+  try {
+    await client.connect()
+    const result = await client.query('SELECT version()')
+    await client.end()
+    if (!result.rows[0].version) {
+      throw new Error('Could not get database version')
+    }
+  } catch (error: any) {
+    if (typeof error.message === 'string') {
+      if (error.message.includes('password authentication failed')) {
+        throw new Error('Database password is incorrect')
+      } else if (error.message.includes('ENOTFOUND')) {
+        throw new Error('Could not resolve database hostname. Your IP might not be allowed in the Supabase dashboard.')
+      }
+    }
+    throw new Error(`Database connection failed: ${error}`)
   }
+}
 
-  return await response.json()
+async function validateEnvironmentVariables() {
+  console.log("\nValidating environment variables...")
+  
+  console.log("\nChecking NEXT_PUBLIC_SUPABASE_URL...")
+  await validateSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL!)
+  console.log("✓ NEXT_PUBLIC_SUPABASE_URL is confirmed valid:", process.env.NEXT_PUBLIC_SUPABASE_URL)
+  
+  console.log("\nChecking SUPABASE_SERVICE_ROLE_KEY...")
+  await validateServiceRoleKey(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+  console.log("✓ SUPABASE_SERVICE_ROLE_KEY is confirmed valid:", process.env.SUPABASE_SERVICE_ROLE_KEY!.slice(0, 10) + "..." + process.env.SUPABASE_SERVICE_ROLE_KEY!.slice(-10))
+  
+  console.log("\nChecking SUPABASE_DB_PASSWORD...")
+  await validateDbPassword(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_DB_PASSWORD!)
+  console.log("✓ SUPABASE_DB_PASSWORD is confirmed valid:", "*".repeat(process.env.SUPABASE_DB_PASSWORD!.length))
+  
+  console.log("\n✓ All environment variables validated successfully!")
 }
 
 async function resetDatabase() {
   console.log("Starting database reset...")
   
-  try {
-    // Clear existing data
-    console.log("Clearing existing data...")
-    await executeSql('DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;')
-    console.log("Existing data cleared successfully")
-
-    // Run the initial schema migration
-    console.log("Running initial schema migration...")
-    const migrationPath = path.resolve(__dirname, "migrations/initial_schema_and_policies.sql")
-    console.log("Migration path:", migrationPath)
-    if (!fs.existsSync(migrationPath)) {
-      throw new Error(`Migration file not found at: ${migrationPath}`)
+  const client = new Client({ 
+    connectionString: dbUrl,
+    ssl: {
+      rejectUnauthorized: false
     }
-    const migration = fs.readFileSync(migrationPath, "utf8")
-    await executeSql(migration)
-    console.log("Database migration completed successfully")
-    
-    // Create auth users with passwords first
-    console.log("Creating auth users...")
+  })
+  
+  try {
+    await client.connect()
+    console.log("Connected to database")
+
+    // First transaction: Schema reset
+    await client.query('BEGIN')
     try {
-      await createSeedUsersWithAuth()
-      console.log("Auth users created successfully")
+      console.log("Clearing public schema...")
+      await client.query('DROP SCHEMA IF EXISTS public CASCADE;')
+      await client.query('CREATE SCHEMA public;')
+      await client.query('GRANT ALL ON SCHEMA public TO postgres;')
+      await client.query('GRANT ALL ON SCHEMA public TO public;')
+      await client.query('COMMIT')
+      console.log("Public schema cleared")
     } catch (error) {
-      console.error("Error creating auth users:", error)
+      await client.query('ROLLBACK')
+      console.error("Error clearing schema:", error)
       throw error
     }
 
-    // Run the seed SQL file
-    console.log("Running seed SQL file...")
-    const seedPath = path.resolve(__dirname, "seed.sql")
-    console.log("Seed path:", seedPath)
-    if (!fs.existsSync(seedPath)) {
-      throw new Error(`Seed file not found at: ${seedPath}`)
-    }
-    const seed = fs.readFileSync(seedPath, "utf8")
-    await executeSql(seed)
-    console.log("Database seeding completed successfully")
+    // Second transaction: Migrations
+    await client.query('BEGIN')
+    try {
+      // Get all migration files and sort them
+      const migrationsDir = path.resolve(__dirname, "migrations")
+      const migrationFiles = fs.readdirSync(migrationsDir)
+        .filter(file => file.endsWith('.sql'))
+        .sort((a, b) => a.localeCompare(b))
 
-    console.log("Database reset and seeding completed successfully!")
+      // Run each migration file in order
+      for (const migrationFile of migrationFiles) {
+        console.log(`Running migration: ${migrationFile}...`)
+        const migrationPath = path.resolve(migrationsDir, migrationFile)
+        const migration = fs.readFileSync(migrationPath, "utf8")
+        await client.query(migration)
+        console.log(`Migration ${migrationFile} completed successfully`)
+      }
+
+      await client.query('COMMIT')
+      console.log("All migrations completed successfully!")
+
+    } catch (error) {
+      await client.query('ROLLBACK')
+      console.error("Error during migration:", error)
+      throw error
+    }
 
   } catch (error) {
-    console.error("Error during database operations:", error)
+    console.error("Database error:", error)
     throw error
+  } finally {
+    try {
+      await client.end()
+    } catch (error) {
+      console.error("Error closing database connection:", error)
+    }
   }
-}
-
-// Test database connection using Supabase client
-async function testConnection() {
-  console.log("Testing connection via Supabase client...")
-  const { data, error } = await supabaseClient
-    .from('profiles')
-    .select('*')
-    .limit(1)
-  
-  if (error) {
-    console.error("Supabase client error:", error)
-    throw error
-  }
-
-  console.log("Supabase connection successful:", data)
-  return data
 }
 
 async function checkTables() {
@@ -139,24 +220,12 @@ async function checkTables() {
   } else {
     console.log("Profiles:", profiles)
   }
-
-  console.log("\nChecking user_roles table:")
-  const { data: roles, error: rolesError } = await supabaseClient
-    .from('user_roles')
-    .select('*')
-  
-  if (rolesError) {
-    console.error("Error fetching user_roles:", rolesError)
-  } else {
-    console.log("User Roles:", roles)
-  }
 }
 
 async function main() {
   try {
-    await testConnection()
+    await validateEnvironmentVariables()
     await resetDatabase()
-    console.log("Database reset completed successfully")
     await checkTables()
   } catch (error) {
     console.error("Fatal error:", error)
@@ -164,7 +233,10 @@ async function main() {
   }
 }
 
-main().catch(error => {
-  console.error("Uncaught error in main:", error)
-  process.exit(1)
-}) 
+// Run if this is the main module (ESM version)
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch(error => {
+    console.error("Uncaught error in main:", error)
+    process.exit(1)
+  })
+} 

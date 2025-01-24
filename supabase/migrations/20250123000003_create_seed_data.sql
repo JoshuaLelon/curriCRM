@@ -77,7 +77,7 @@ select * from (values
 ) as v(id, title, url, created_by)
 where not exists (select 1 from public.sources where sources.id = v.id);
 
--- Create requests if they don't exist
+-- Create requests if they don't exist and set their source_ids
 insert into public.requests (id, created_at, accepted_at, started_at, finished_at, source_id, content_type, tag, student_id, expert_id)
 select * from (values
   ('00000000-0000-0000-0000-000000000101'::uuid, now() - interval '3 days', null, null, null, '00000000-0000-0000-0000-000000000005'::uuid, 'tutorial'::public.content_type, 'software'::public.tag, student_profile_id, expert_profile_id),
