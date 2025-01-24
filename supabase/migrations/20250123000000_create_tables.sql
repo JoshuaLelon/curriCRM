@@ -73,7 +73,8 @@ create table public.curriculum_nodes (
 );
 
 -- Create messages table
-create sequence if not exists public.messages_id_seq;
+drop sequence if exists public.messages_id_seq cascade;
+create sequence public.messages_id_seq;
 create table public.messages (
   id int8 primary key default nextval('public.messages_id_seq'),
   request_id uuid references public.requests on delete cascade,

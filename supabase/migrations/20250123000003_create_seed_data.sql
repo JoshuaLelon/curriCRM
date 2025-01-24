@@ -127,14 +127,14 @@ select * from (values
 where not exists (select 1 from public.curriculum_nodes where curriculum_nodes.id = v.id);
 
 -- Create messages if they don't exist
-insert into public.messages (id, request_id, content, sender_id)
+insert into public.messages (request_id, content, sender_id)
 select * from (values
-  (1, '00000000-0000-0000-0000-000000000103'::uuid, 'Hi, I need help understanding this concept.', student_profile_id),
-  (2, '00000000-0000-0000-0000-000000000103'::uuid, 'Sure, I can help you with that.', expert_profile_id),
-  (3, '00000000-0000-0000-0000-000000000104'::uuid, 'Could you explain this in more detail?', student_profile_id),
-  (4, '00000000-0000-0000-0000-000000000104'::uuid, 'Here''s a detailed explanation...', expert_profile_id)
-) as v(id, request_id, content, sender_id)
-where not exists (select 1 from public.messages where messages.id = v.id);
+  ('00000000-0000-0000-0000-000000000103'::uuid, 'Hi, I need help understanding this concept.', student_profile_id),
+  ('00000000-0000-0000-0000-000000000103'::uuid, 'Sure, I can help you with that.', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000104'::uuid, 'Could you explain this in more detail?', student_profile_id),
+  ('00000000-0000-0000-0000-000000000104'::uuid, 'Here''s a detailed explanation...', expert_profile_id)
+) as v(request_id, content, sender_id)
+where not exists (select 1 from public.messages where messages.content = v.content);
 
 end;
 $$; 
