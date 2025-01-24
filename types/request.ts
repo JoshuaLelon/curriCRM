@@ -1,59 +1,62 @@
 export type RequestStatus = "not_accepted" | "not_started" | "in_progress" | "finished"
-
 export type UserRole = "student" | "expert" | "admin"
+export type Tag = 'math' | 'software' | 'ai'
+export type ContentType = 'tutorial' | 'explanation' | 'how_to_guide' | 'reference'
+
+export interface Profile {
+  id: number
+  user_id: string
+  email: string
+  specialty: Tag | null
+  is_admin: boolean
+  created_at: string
+}
 
 export interface Source {
-  id: string
+  id: number
   title: string
   url: string
-  created_by: string
+  created_by: number
+  created_at: string
 }
 
 export interface Message {
-  id: string
+  id: number
   content: string
   created_at: string
-  request_id: string
-  sender_id: string
-  sender: {
-    id: string
-    email: string
-  }
+  request_id: number
+  sender_id: number
+  sender?: Profile
 }
 
 export interface CurriculumNode {
-  id: string
-  curriculum_id: string
-  source_id: string
+  id: number
+  curriculum_id: number
+  source_id: number
   start_time: number
   end_time: number
   level: number
   index_in_curriculum: number
-  source: Source
+  created_at: string
+  source?: Source
 }
 
 export interface Request {
-  id: string
-  student_id: string
-  expert_id: string | null
-  source_id: string
-  content_type: string
-  tag: string
+  id: number
+  student_id: number
+  expert_id: number | null
+  source_id: number
+  content_type: ContentType
+  tag: Tag
   created_at: string
   accepted_at: string | null
   started_at: string | null
   finished_at: string | null
-  source: Source | null
-  expert: {
-    id: string
-    email: string
-  } | null
-  student: {
-    id: string
-    email: string
-  }
+  source?: Source | null
+  expert?: Profile | null
+  student?: Profile
   curriculum?: {
-    id: string
+    id: number
     curriculum_nodes: CurriculumNode[]
   }
   messages?: Message[]

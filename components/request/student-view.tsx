@@ -1,7 +1,9 @@
 "use client"
 
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { useSupabase } from "@/components/providers/supabase-provider"
 import type { Request } from "@/types/request"
 import { getRequestStatus } from "@/utils/request-status"
 import { canDeleteRequest } from "@/utils/request-permissions"

@@ -1,8 +1,10 @@
 "use client"
 
+import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { useSupabase } from "@/components/providers/supabase-provider"
 import RequestsTable from "@/components/requests-table"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import type { Request, Profile } from "@/types"
 
 interface AdminHomeProps {
@@ -11,9 +13,11 @@ interface AdminHomeProps {
   email: string
 }
 
-export default function AdminHome({ requests, experts, email }: AdminHomeProps) {
+export default function AdminHome({ requests: initialRequests, experts: initialExperts, email }: AdminHomeProps) {
   const router = useRouter()
-  const supabase = createClientComponentClient()
+  const { supabase } = useSupabase()
+  const [requests, setRequests] = useState<Request[]>(initialRequests)
+  const [experts, setExperts] = useState<Profile[]>(initialExperts)
 
   const handleRequestClick = (request: Request) => {
     router.push(`/request/${request.id}`)

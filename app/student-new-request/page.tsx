@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import UserHeader from "@/components/user-header"
 import NewRequestForm from "@/components/new-request-form"
 import { useRouter } from "next/navigation"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { useSupabase } from "@/components/providers/supabase-provider"
 
 // These are the valid types and tags from the database schema
 const availableTypes = ["tutorial", "explanation", "how_to_guide", "reference"]
@@ -12,13 +12,21 @@ const availableTags = ["math", "software", "ai"]
 
 export default function StudentNewRequest() {
   const router = useRouter()
+  const { isLoading, hasSession, supabase } = useSupabase()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [user, setUser] = useState<{ email: string } | null>(null)
-  const supabase = createClientComponentClient()
+
+  useEffect(() => {
+    if (!isLoading && !hasSession) {
+      router.push('/login')
+    }
+  }, [isLoading, hasSession, router])
 
   useEffect(() => {
     async function loadData() {
+      if (!hasSession) return // Don't load data if no session
+
       try {
         // Get current user
         const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser()
@@ -38,7 +46,7 @@ export default function StudentNewRequest() {
     }
 
     loadData()
-  }, [supabase, router])
+  }, [hasSession, supabase, router])
 
   const handleSubmit = async (formData: any) => {
     try {
@@ -59,7 +67,7 @@ export default function StudentNewRequest() {
         .from("sources")
         .insert([{
           title: formData.sourceName,
-          URL: formData.sourceUrl,
+          url: formData.sourceUrl,
           created_by: profile.id
         }])
         .select()
@@ -91,6 +99,18 @@ export default function StudentNewRequest() {
       console.error("Error creating request:", error)
       alert("Failed to create request")
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    )
+  }
+
+  if (!hasSession) {
+    return null // Will redirect in useEffect
   }
 
   if (loading) {

@@ -1,3 +1,5 @@
+export * from './request'
+
 export type Tag = 'math' | 'software' | 'ai'
 export type ContentType = 'tutorial' | 'explanation' | 'how_to_guide' | 'reference'
 

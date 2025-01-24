@@ -1,7 +1,7 @@
 import type { Request, RequestStatus, UserRole } from "@/types/request"
 
 interface User {
-  id: string
+  id: number
   role: UserRole
 }
 
