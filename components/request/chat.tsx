@@ -63,7 +63,7 @@ export default function Chat({ request, currentUser, onMessageSent }: ChatProps)
 
     // Subscribe to new messages
     const channel = supabase
-      .channel(`request_${request.id}`)
+      .channel(`request_${request.id}_messages`)
       .on(
         "postgres_changes",
         {
@@ -72,9 +72,23 @@ export default function Chat({ request, currentUser, onMessageSent }: ChatProps)
           table: "messages",
           filter: `request_id=eq.${request.id}`,
         },
-        (payload) => {
-          const newMessage = payload.new as Message
-          setMessages((prev) => [...prev, newMessage])
+        async (payload) => {
+          // Fetch the complete message with sender info
+          const { data: messageData, error: messageError } = await supabase
+            .from("messages")
+            .select(`
+              *,
+              sender:profiles(*)
+            `)
+            .eq("id", payload.new.id)
+            .single()
+
+          if (messageError) {
+            console.error("Error fetching new message:", messageError)
+            return
+          }
+
+          setMessages((prev) => [...prev, messageData])
         }
       )
       .subscribe()
@@ -95,15 +109,21 @@ export default function Chat({ request, currentUser, onMessageSent }: ChatProps)
     if (!newMessage.trim()) return
 
     try {
-      const { error } = await supabase.from("messages").insert([
-        {
-          content: newMessage.trim(),
-          request_id: request.id,
-          sender_id: typeof currentUser.id === 'string' ? parseInt(currentUser.id) : currentUser.id,
-        },
-      ])
+      const messageData = {
+        content: newMessage.trim(),
+        request_id: request.id,
+        sender_id: currentUser.id
+      }
 
-      if (error) throw error
+      const { error } = await supabase
+        .from("messages")
+        .insert(messageData)
+        .select()
+
+      if (error) {
+        console.error("Error sending message:", error)
+        throw error
+      }
 
       setNewMessage("")
       onMessageSent?.()

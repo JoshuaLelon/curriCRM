@@ -58,57 +58,7 @@ export default function RequestPage({ params }: { params: { id: string } }) {
 
         setCurrentUser(profile)
 
-        // Get request details
-        console.log('Fetching request details...')
-        const { data: requestData, error: requestError } = await supabase
-          .from("requests")
-          .select(`
-            *,
-            source:sources(*),
-            student:profiles!requests_student_id_fkey(*),
-            expert:profiles!requests_expert_id_fkey(*),
-            curriculum:curriculums (
-              *,
-              curriculum_nodes (
-                *,
-                source:sources(*)
-              )
-            ),
-            messages (
-              *,
-              sender:profiles(*)
-            )
-          `)
-          .eq("id", params.id)
-          .single()
-        
-        if (requestError) {
-          console.error('Request fetch error:', requestError)
-          throw requestError
-        }
-
-        console.log('Raw request data:', requestData)
-        console.log('Source data:', requestData?.source)
-        console.log('Source ID from request:', requestData?.source_id)
-
-        // Additional source check
-        if (requestData?.source_id && !requestData?.source) {
-          console.log('Source ID exists but no source data, fetching directly...')
-          const { data: sourceData, error: sourceError } = await supabase
-            .from("sources")
-            .select("*")
-            .eq("id", requestData.source_id)
-            .single()
-          
-          if (sourceError) {
-            console.error('Direct source fetch error:', sourceError)
-          } else {
-            console.log('Directly fetched source:', sourceData)
-            requestData.source = sourceData
-          }
-        }
-
-        setRequest(requestData)
+        await fetchRequestData()
 
         // If admin, fetch list of experts
         if (profile.role === "admin") {
@@ -124,12 +74,87 @@ export default function RequestPage({ params }: { params: { id: string } }) {
             role: "expert"
           })))
         }
+
+        // Subscribe to request changes
+        const channel = supabase
+          .channel(`request_${params.id}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "requests",
+              filter: `id=eq.${params.id}`,
+            },
+            async (payload) => {
+              console.log("Request updated, fetching new data...")
+              await fetchRequestData()
+            }
+          )
+          .subscribe()
+
+        return () => {
+          supabase.removeChannel(channel)
+        }
+
       } catch (err) {
         console.error("Error loading data:", err)
         setError(err instanceof Error ? err.message : "An error occurred")
       } finally {
         setLoading(false)
       }
+    }
+
+    async function fetchRequestData() {
+      const { data: requestData, error: requestError } = await supabase
+        .from("requests")
+        .select(`
+          *,
+          source:sources(*),
+          student:profiles!requests_student_id_fkey(*),
+          expert:profiles!requests_expert_id_fkey(*),
+          curriculum:curriculums (
+            *,
+            curriculum_nodes (
+              *,
+              source:sources(*)
+            )
+          ),
+          messages (
+            *,
+            sender:profiles(*)
+          )
+        `)
+        .eq("id", params.id)
+        .single()
+      
+      if (requestError) {
+        console.error('Request fetch error:', requestError)
+        throw requestError
+      }
+
+      console.log('Raw request data:', requestData)
+      console.log('Source data:', requestData?.source)
+      console.log('Source ID from request:', requestData?.source_id)
+
+      // Additional source check
+      if (requestData?.source_id && !requestData?.source) {
+        console.log('Source ID exists but no source data, fetching directly...')
+        const { data: sourceData, error: sourceError } = await supabase
+          .from("sources")
+          .select("*")
+          .eq("id", requestData.source_id)
+          .single()
+        
+        if (sourceError) {
+          console.error('Direct source fetch error:', sourceError)
+        } else {
+          console.log('Directly fetched source:', sourceData)
+          requestData.source = sourceData
+        }
+      }
+
+      setRequest(requestData)
     }
 
     loadData()
@@ -140,15 +165,32 @@ export default function RequestPage({ params }: { params: { id: string } }) {
     if (!request) return
 
     try {
+      // First update the source if it changed
+      if (updates.source) {
+        const { error: sourceError } = await supabase
+          .from("sources")
+          .upsert({
+            id: request.source?.id || undefined,
+            title: updates.source.title,
+            url: updates.source.url,
+            created_by: request.student_id
+          })
+          .select()
+          .single()
+        
+        if (sourceError) throw sourceError
+      }
+
+      // Then update the request
       const { error: updateError } = await supabase
         .from("requests")
-        .update(updates)
+        .update({
+          tag: updates.tag,
+          content_type: updates.content_type
+        })
         .eq("id", request.id)
       
       if (updateError) throw updateError
-
-      // Refresh request data
-      router.refresh()
     } catch (err) {
       console.error("Error updating request:", err)
       alert("Failed to update request")
@@ -190,9 +232,6 @@ export default function RequestPage({ params }: { params: { id: string } }) {
         .eq("id", request.id)
       
       if (updateError) throw updateError
-
-      // Refresh request data
-      router.refresh()
     } catch (err) {
       console.error("Error assigning expert:", err)
       alert("Failed to assign expert")

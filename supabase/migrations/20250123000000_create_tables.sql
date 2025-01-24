@@ -82,6 +82,10 @@ create table public.messages (
   sender_id int8 references public.profiles(id)
 );
 alter sequence public.messages_id_seq owned by public.messages.id;
+select setval('public.messages_id_seq', (select coalesce(max(id), 0) + 1 from public.messages), false);
+
+-- Grant sequence permissions
+grant usage, select on sequence public.messages_id_seq to authenticated;
 
 -- Enable RLS on all tables
 alter table public.profiles enable row level security;
