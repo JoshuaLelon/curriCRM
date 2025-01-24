@@ -96,14 +96,14 @@ select * from (values
   ('00000000-0000-0000-0000-000000000005'::uuid, 'Software Design Patterns', 'https://refactoring.guru/design-patterns', expert_profile_id),
   ('00000000-0000-0000-0000-000000000006'::uuid, 'AI Ethics and Safety', 'https://www.edx.org/learn/artificial-intelligence/harvard-university-ethics-and-ai', expert_profile_id),
   -- New vector spaces sources
-  ('00000000-0000-0000-0000-000000000011'::uuid, 'Introduction to Linear Algebra', 'https://math.mit.edu/~gs/linearalgebra/', expert_profile_id),
-  ('00000000-0000-0000-0000-000000000012'::uuid, 'Vector Space Basics', 'https://en.wikipedia.org/wiki/Vector_space', expert_profile_id),
-  ('00000000-0000-0000-0000-000000000013'::uuid, 'Linear Transformations', 'https://en.wikipedia.org/wiki/Linear_map', expert_profile_id),
-  ('00000000-0000-0000-0000-000000000014'::uuid, 'Group Theory Fundamentals', 'https://en.wikipedia.org/wiki/Group_theory', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000011'::uuid, 'Introduction to Linear Algebra', 'https://www.youtube.com/watch?v=fNk_zzaMoSs', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000012'::uuid, 'Vector Space Basics', 'https://www.youtube.com/watch?v=k7RM-ot2NWY', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000013'::uuid, 'Linear Transformations', 'https://www.youtube.com/watch?v=kYB8IZa5AuE', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000014'::uuid, 'Group Theory Fundamentals', 'https://www.youtube.com/watch?v=TgKwz5Ikpc8', expert_profile_id),
   ('00000000-0000-0000-0000-000000000015'::uuid, 'Representation Theory', 'https://en.wikipedia.org/wiki/Representation_theory', expert_profile_id),
-  ('00000000-0000-0000-0000-000000000016'::uuid, 'Vector Space Representations', 'https://en.wikipedia.org/wiki/Group_representation', expert_profile_id),
-  ('00000000-0000-0000-0000-000000000017'::uuid, 'Dimension and Basis', 'https://en.wikipedia.org/wiki/Dimension_(vector_space)', expert_profile_id),
-  ('00000000-0000-0000-0000-000000000018'::uuid, 'Homomorphisms in Vector Spaces', 'https://en.wikipedia.org/wiki/Linear_map#Homomorphisms', expert_profile_id)
+  ('00000000-0000-0000-0000-000000000016'::uuid, 'Vector Space Representations', 'https://www.youtube.com/watch?v=mH0oCDa74tE', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000017'::uuid, 'Dimension and Basis', 'https://www.youtube.com/watch?v=P2LTAUO1TdA', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000018'::uuid, 'Homomorphisms in Vector Spaces', 'https://www.youtube.com/watch?v=13r9QY6cmjc', expert_profile_id)
 ) as v(id, title, url, created_by)
 where not exists (select 1 from public.sources where sources.id = v.id);
 
@@ -138,14 +138,14 @@ select * from (values
   ('00000000-0000-0000-0000-000000000304'::uuid, '00000000-0000-0000-0000-000000000202'::uuid, '00000000-0000-0000-0000-000000000004'::uuid, 0, 300, 2, 2),
   -- New vector spaces curriculum nodes - Updated indices for depth-first traversal
   -- Left branch
-  ('00000000-0000-0000-0000-000000000401'::uuid, '00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000011'::uuid, 0, 300, 0, 0), -- Linear Algebra
-  ('00000000-0000-0000-0000-000000000403'::uuid, '00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000012'::uuid, 0, 300, 1, 1), -- Vector Space Basics
-  ('00000000-0000-0000-0000-000000000405'::uuid, '00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000013'::uuid, 0, 300, 2, 2), -- Linear Transformations
-  ('00000000-0000-0000-0000-000000000407'::uuid, '00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000016'::uuid, 0, 300, 3, 3), -- Vector Space Representations
+  ('00000000-0000-0000-0000-000000000401'::uuid, '00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000011'::uuid, 0, 900, 0, 0), -- Linear Algebra
+  ('00000000-0000-0000-0000-000000000403'::uuid, '00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000012'::uuid, 0, 660, 1, 1), -- Vector Space Basics
+  ('00000000-0000-0000-0000-000000000405'::uuid, '00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000013'::uuid, 0, 780, 2, 2), -- Linear Transformations
+  ('00000000-0000-0000-0000-000000000407'::uuid, '00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000016'::uuid, 0, 1200, 3, 3), -- Vector Space Representations
   -- Right branch
-  ('00000000-0000-0000-0000-000000000402'::uuid, '00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000014'::uuid, 0, 300, 0, 4), -- Group Theory
-  ('00000000-0000-0000-0000-000000000404'::uuid, '00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000017'::uuid, 0, 300, 1, 5), -- Dimension and Basis
-  ('00000000-0000-0000-0000-000000000406'::uuid, '00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000018'::uuid, 0, 300, 2, 6)  -- Homomorphisms
+  ('00000000-0000-0000-0000-000000000402'::uuid, '00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000014'::uuid, 0, 1200, 0, 4), -- Group Theory
+  ('00000000-0000-0000-0000-000000000404'::uuid, '00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000017'::uuid, 0, 840, 1, 5), -- Dimension and Basis
+  ('00000000-0000-0000-0000-000000000406'::uuid, '00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000018'::uuid, 0, 1500, 2, 6)  -- Homomorphisms
 ) as v(id, curriculum_id, source_id, start_time, end_time, level, index_in_curriculum)
 where not exists (select 1 from public.curriculum_nodes where curriculum_nodes.id = v.id);
 
@@ -163,6 +163,78 @@ select * from (values
   ('00000000-0000-0000-0000-000000000105'::uuid, 'Exactly! Notice how we start with basic linear algebra and group theory, then build up to the more advanced concepts.', expert_profile_id)
 ) as v(request_id, content, sender_id)
 where not exists (select 1 from public.messages where messages.content = v.content);
+
+-- Update sources for vector spaces curriculum
+UPDATE public.sources
+SET url = 'https://www.youtube.com/watch?v=fNk_zzaMoSs',
+    title = '3Blue1Brown: Essence of Linear Algebra'
+WHERE id = '00000000-0000-0000-0000-000000000011';
+
+UPDATE public.sources
+SET url = 'https://www.youtube.com/watch?v=k7RM-ot2NWY',
+    title = '3Blue1Brown: Vector Spaces'
+WHERE id = '00000000-0000-0000-0000-000000000012';
+
+UPDATE public.sources
+SET url = 'https://www.youtube.com/watch?v=kYB8IZa5AuE',
+    title = '3Blue1Brown: Linear Transformations'
+WHERE id = '00000000-0000-0000-0000-000000000013';
+
+UPDATE public.sources
+SET url = 'https://www.youtube.com/watch?v=TgKwz5Ikpc8',
+    title = 'Group Theory: An Intuitive Introduction'
+WHERE id = '00000000-0000-0000-0000-000000000014';
+
+UPDATE public.sources
+SET url = 'https://www.youtube.com/watch?v=mH0oCDa74tE',
+    title = '3Blue1Brown: Change of Basis'
+WHERE id = '00000000-0000-0000-0000-000000000016';
+
+UPDATE public.sources
+SET url = 'https://www.youtube.com/watch?v=P2LTAUO1TdA',
+    title = '3Blue1Brown: Basis and Dimension'
+WHERE id = '00000000-0000-0000-0000-000000000017';
+
+UPDATE public.sources
+SET url = 'https://www.youtube.com/watch?v=13r9QY6cmjc',
+    title = 'Visual Group Theory: Homomorphisms'
+WHERE id = '00000000-0000-0000-0000-000000000018';
+
+-- Update curriculum nodes with appropriate timestamps
+UPDATE public.curriculum_nodes
+SET start_time = 0,
+    end_time = 900  -- 15 minutes overview
+WHERE id = '00000000-0000-0000-0000-000000000401';
+
+UPDATE public.curriculum_nodes
+SET start_time = 0,
+    end_time = 660  -- 11 minutes
+WHERE id = '00000000-0000-0000-0000-000000000403';
+
+UPDATE public.curriculum_nodes
+SET start_time = 0,
+    end_time = 780  -- 13 minutes
+WHERE id = '00000000-0000-0000-0000-000000000405';
+
+UPDATE public.curriculum_nodes
+SET start_time = 0,
+    end_time = 1200  -- 20 minutes intro
+WHERE id = '00000000-0000-0000-0000-000000000402';
+
+UPDATE public.curriculum_nodes
+SET start_time = 0,
+    end_time = 840  -- 14 minutes
+WHERE id = '00000000-0000-0000-0000-000000000407';
+
+UPDATE public.curriculum_nodes
+SET start_time = 0,
+    end_time = 720  -- 12 minutes
+WHERE id = '00000000-0000-0000-0000-000000000404';
+
+UPDATE public.curriculum_nodes
+SET start_time = 0,
+    end_time = 1500  -- 25 minutes
+WHERE id = '00000000-0000-0000-0000-000000000406';
 
 end;
 $$; 
