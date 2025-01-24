@@ -72,13 +72,17 @@ export default function StudentNewRequest() {
 
       // Create source using the API route
       console.log('Creating source...')
+      const { data: { session: currentSession } } = await supabase.auth.getSession()
+      if (!currentSession?.access_token) {
+        throw new Error("No access token available")
+      }
+      
       const sourceResponse = await fetch("/api/sources", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`
+          "Authorization": `Bearer ${currentSession.access_token}`
         },
-        credentials: 'include',
         body: JSON.stringify({
           title: formData.sourceName,
           url: formData.sourceUrl
@@ -101,9 +105,8 @@ export default function StudentNewRequest() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`
+          "Authorization": `Bearer ${session?.access_token}`
         },
-        credentials: 'include',
         body: JSON.stringify({
           source_id: source.id,
           student_id: profile.id,

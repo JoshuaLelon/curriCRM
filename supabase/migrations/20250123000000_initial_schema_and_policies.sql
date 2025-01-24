@@ -48,17 +48,21 @@ create table public.sources (
 -- Enable RLS on sources table
 alter table public.sources enable row level security;
 
--- Policy to allow authenticated users to insert sources
-create policy "Authenticated users can insert sources"
-on public.sources for insert
-to authenticated
-with check (true);
+-- Drop all existing sources policies
+drop policy if exists "Sources are viewable by everyone" on public.sources;
+drop policy if exists "Authenticated users can create sources" on public.sources;
+drop policy if exists "Authenticated users can view sources" on public.sources;
+drop policy if exists "Authenticated users can insert sources" on public.sources;
+drop policy if exists "Authenticated users can view all sources" on public.sources;
 
--- Policy to allow all authenticated users to view any source
-create policy "Authenticated users can view all sources"
-on public.sources for select
-to authenticated
-using (true);
+-- Create consolidated sources policies
+create policy "Authenticated users can view sources"
+  on public.sources for select
+  using (auth.role() = 'authenticated');
+
+create policy "Authenticated users can create sources"
+  on public.sources for insert
+  with check (auth.role() = 'authenticated');
 
 -- Create requests table
 create table public.requests (
@@ -127,19 +131,8 @@ create policy "Users can update own profile"
   using (auth.uid()::text = user_id::text);
 
 -- Sources policies
-create policy "Sources are viewable by everyone"
-  on public.sources for select
-  using (true);
-
-create policy "Authenticated users can create sources"
-  on public.sources for insert
-  with check (
-    exists (
-      select 1 from public.profiles p
-      where p.id = created_by
-      and p.user_id = auth.uid()
-    )
-  );
+drop policy if exists "Sources are viewable by everyone" on public.sources;
+drop policy if exists "Authenticated users can create sources" on public.sources;
 
 -- Requests policies
 drop policy if exists "Students can view their own requests" on public.requests;

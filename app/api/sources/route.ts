@@ -1,4 +1,5 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -44,13 +45,12 @@ export async function POST(request: NextRequest) {
   try {
     console.log('POST /api/sources - Starting request handling')
     
-    const supabase = createRouteHandlerClient({ cookies })
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ 
+      cookies: () => cookieStore 
+    })
 
-    const json = await request.json()
-    console.log('Request body:', json)
-
-    // Get session first
-    console.log('Getting session...')
+    // Get the session directly
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
     
     if (sessionError || !session) {
@@ -61,15 +61,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get profile ID
+    console.log('Session found:', {
+      user_id: session.user.id,
+      role: session.user.role
+    })
+
+    const json = await request.json()
+    console.log('Request body:', json)
+
+    // Get profile ID using the session user
     console.log('Getting profile for user:', session.user.id)
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("id")
+      .select("id, user_id")
       .eq("user_id", session.user.id)
       .single()
     
-    console.log('Profile data:', profile, 'Profile error:', profileError)
+    console.log('Profile lookup result:', { profile, error: profileError })
 
     if (profileError || !profile) {
       console.error('Profile error:', profileError)
@@ -90,7 +98,11 @@ export async function POST(request: NextRequest) {
       .select()
       .single()
     
-    console.log('Source creation result:', data, 'Source creation error:', error)
+    console.log('Source creation result:', {
+      success: !!data && !error,
+      data: data,
+      error: error
+    })
 
     if (error) {
       console.error("Source creation error:", error)

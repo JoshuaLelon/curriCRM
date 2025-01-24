@@ -7,10 +7,15 @@ export async function middleware(req: NextRequest) {
   const supabase = createMiddlewareClient({ req, res })
 
   // Refresh session if expired - required for Server Components
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { session }, error } = await supabase.auth.getSession()
+
+  if (error) {
+    console.error('Middleware session error:', error)
+  }
 
   // If there's a session, ensure the response includes the session cookie
   if (session) {
+    // Set the auth token in the response headers
     res.headers.set('x-supabase-auth', session.access_token)
   }
 

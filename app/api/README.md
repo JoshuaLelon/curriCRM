@@ -2,6 +2,21 @@
 
 This directory contains all the API routes for the CurriCRM application. Each route is implemented using Next.js App Router and communicates with the Supabase database.
 
+## Authentication
+
+All routes use the Supabase auth helpers for Next.js to handle authentication. The routes automatically use the user's session from cookies to authenticate requests to the Supabase database.
+
+The authentication flow works as follows:
+1. The middleware (`middleware.ts`) intercepts all requests and checks for a valid session
+2. If a session exists, the middleware sets the session token in both headers and cookies
+3. Route handlers then use `createRouteHandlerClient` which automatically picks up the session from cookies
+4. All database operations are performed with the authenticated user's role and permissions
+
+This ensures that:
+- All database operations respect row-level security (RLS) policies
+- Users can only access and modify data they have permission for
+- The "authenticated" role is properly applied to all database operations
+
 ## Routes Overview
 
 ### Requests (`/api/requests`)
@@ -80,14 +95,13 @@ This directory contains all the API routes for the CurriCRM application. Each ro
   - Updates an existing curriculum node
   - Body contains fields to update
 
-## Authentication
-
-All routes use the Supabase auth helpers for Next.js to handle authentication. The routes automatically use the user's session from cookies to authenticate requests to the Supabase database.
-
 ## Error Handling
 
 All routes follow a consistent error handling pattern:
 - Database errors are returned with a 400 status code and an error message
+- Authentication errors return 401 status code
+- Not found errors return 404 status code
+- Other errors return 500 status code
 - Successful responses return the data in a standardized format: `{ data: ... }`
 
 ## Data Relationships
