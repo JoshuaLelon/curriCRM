@@ -1,0 +1,1 @@
+-- No auth schema permissions needed since we're only dealing with public schema 
