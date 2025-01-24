@@ -96,7 +96,16 @@ export default function HomePage() {
         } else if (role === "expert") {
           requestsQuery = supabase
             .from("requests")
-            .select("*, source(*), student:profiles!requests_student_id_fkey(*)")
+            .select(`
+              *,
+              source:sources(*),
+              student:profiles!requests_student_id_fkey(
+                id,
+                email,
+                specialty,
+                is_admin
+              )
+            `)
             .eq("expert_id", profile.id)
         } else {
           // Admin sees all requests

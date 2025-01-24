@@ -321,15 +321,18 @@ export default function RequestPage({ params }: { params: { id: string } }) {
     if (!request) return
 
     try {
+      const now = new Date().toISOString()
       const { error: updateError } = await supabase
         .from("requests")
-        .update({ finished_at: new Date().toISOString() })
+        .update({
+          finished_at: now
+        })
         .eq("id", request.id)
       
       if (updateError) throw updateError
 
       // Refresh request data
-      router.refresh()
+      await fetchRequestData()
     } catch (err) {
       console.error("Error submitting request:", err)
       alert("Failed to submit request")

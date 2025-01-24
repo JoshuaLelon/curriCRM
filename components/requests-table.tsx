@@ -1,26 +1,21 @@
 "use client"
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { Request } from "@/types/request"
 import { getRequestStatus, getStatusLabel } from "@/utils/request-status"
 
 interface RequestsTableProps {
   requests: Request[]
-  experts: Array<{ id: number; email: string }>
   onRequestClick: (request: Request) => void
-  onExpertChange: (requestId: number, expertId: string) => void
-  onDeleteRequest: (requestId: number) => void
+  showPositionInLine?: boolean
+  actions?: (request: Request) => React.ReactNode
 }
 
 export default function RequestsTable({
   requests,
-  experts,
   onRequestClick,
-  onExpertChange,
-  onDeleteRequest,
+  showPositionInLine = false,
+  actions
 }: RequestsTableProps) {
   const getTimeElapsed = (dateString: string) => {
     const created = new Date(dateString)
@@ -53,10 +48,9 @@ export default function RequestsTable({
             <TableHead>Tag</TableHead>
             <TableHead>Request Type</TableHead>
             <TableHead>Time Elapsed</TableHead>
-            <TableHead>Position in Line</TableHead>
+            {showPositionInLine && <TableHead>Position in Line</TableHead>}
             <TableHead>Status</TableHead>
-            <TableHead>Expert Assigned</TableHead>
-            <TableHead>Action</TableHead>
+            {actions && <TableHead>Action</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -84,41 +78,19 @@ export default function RequestsTable({
                 <TableCell className="capitalize">{request.tag}</TableCell>
                 <TableCell className="capitalize">{request.content_type.replace("_", " ")}</TableCell>
                 <TableCell>{getTimeElapsed(request.created_at)}</TableCell>
-                <TableCell>{status === "in_progress" ? "14" : "N/A"}</TableCell>
+                {showPositionInLine && (
+                  <TableCell>{status === "in_progress" ? "14" : "N/A"}</TableCell>
+                )}
                 <TableCell>
                   <span className={`px-2 py-1 rounded ${getStatusColor(status)}`}>
                     {getStatusLabel(status)}
                   </span>
                 </TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <Select
-                    defaultValue={request.expert?.id?.toString()}
-                    onValueChange={(value) => onExpertChange(request.id, value)}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Select expert" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {experts.map((expert) => (
-                        <SelectItem key={expert.id} value={expert.id.toString()}>
-                          {expert.email}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant="destructive"
-                    className="h-8 px-3"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onDeleteRequest(request.id)
-                    }}
-                  >
-                    Delete
-                  </Button>
-                </TableCell>
+                {actions && (
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    {actions(request)}
+                  </TableCell>
+                )}
               </TableRow>
             )
           })}
