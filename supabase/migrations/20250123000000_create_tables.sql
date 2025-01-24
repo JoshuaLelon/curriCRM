@@ -96,6 +96,9 @@ alter table public.curriculum_nodes enable row level security;
 alter table public.sources enable row level security;
 alter table public.messages enable row level security;
 
+-- Enable realtime for messages table
+alter publication supabase_realtime add table messages;
+
 -- Grant permissions for foreign key references
 grant select on public.profiles to authenticated;
 grant select on public.sources to authenticated;

@@ -13,6 +13,7 @@ interface ChatProps {
   currentUser: {
     id: string | number
     role: UserRole
+    email: string
   }
   onMessageSent?: () => void
 }
@@ -73,6 +74,7 @@ export default function Chat({ request, currentUser, onMessageSent }: ChatProps)
           filter: `request_id=eq.${request.id}`,
         },
         async (payload) => {
+          console.log("New message received:", payload)
           // Fetch the complete message with sender info
           const { data: messageData, error: messageError } = await supabase
             .from("messages")
@@ -91,12 +93,14 @@ export default function Chat({ request, currentUser, onMessageSent }: ChatProps)
           setMessages((prev) => [...prev, messageData])
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log("Subscription status:", status)
+      })
 
     return () => {
-      channel.unsubscribe()
+      supabase.removeChannel(channel)
     }
-  }, [supabase, request.id])
+  }, [supabase, request.id, currentUser.id, request.expert, request.student])
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -133,6 +137,13 @@ export default function Chat({ request, currentUser, onMessageSent }: ChatProps)
     }
   }
 
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSubmit(e)
+    }
+  }
+
   if (!canViewChat(request, currentUser)) {
     return <div className="text-gray-500">Chat is not available</div>
   }
@@ -155,7 +166,7 @@ export default function Chat({ request, currentUser, onMessageSent }: ChatProps)
               }`}
             >
               <div className="text-sm font-medium mb-1">
-                {msg.sender?.email.split("@")[0]}
+                {msg.sender?.email?.split("@")[0]}
               </div>
               <div>{msg.content}</div>
             </div>
@@ -169,6 +180,7 @@ export default function Chat({ request, currentUser, onMessageSent }: ChatProps)
           <Textarea
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={handleKeyPress}
             placeholder="Type your message..."
             className="flex-1 min-h-[80px]"
           />
