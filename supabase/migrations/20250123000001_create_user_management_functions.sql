@@ -12,41 +12,52 @@ begin
   -- Add delay to ensure user is fully created
   perform pg_sleep(0.1);
   
-  -- Log the new user creation attempt
-  raise notice 'Creating profile for user: % (ID: %)', new.email, new.id;
-
+  -- Enhanced logging with NOTICE level
+  raise notice E'\n=== New User Trigger ===\nUser: % (ID: %)\nMetadata: %\nApp Metadata: %', 
+    new.email, new.id, new.raw_user_meta_data, new.raw_app_meta_data;
+  
   -- Determine specialty without using enum directly
   user_specialty := case
     when new.email = 'joshua.mitchell@gauntletai.com' then 'software'
     else null
   end;
 
-  -- Check if profile already exists
+  -- Check if profile already exists with enhanced logging
   if exists (select 1 from public.profiles where user_id = new.id) then
-    raise notice 'Profile already exists for user: %', new.email;
+    raise notice E'\n=== Profile Exists ===\nUser: % (ID: %)', new.email, new.id;
+    select id into profile_id from public.profiles where user_id = new.id;
+    raise notice 'Existing profile ID: %', profile_id;
     return new;
   end if;
 
   -- Create profile with appropriate role
-  insert into public.profiles (
-    user_id,
-    email,
-    specialty,
-    is_admin
-  )
-  values (
-    new.id,
-    new.email,
-    user_specialty::public.tag,
-    new.email = 'joshua.mitchell@g.austincc.edu'
-  )
-  returning id into profile_id;
+  begin
+    insert into public.profiles (
+      user_id,
+      email,
+      specialty,
+      is_admin
+    )
+    values (
+      new.id,
+      new.email,
+      user_specialty::public.tag,
+      new.email = 'joshua.mitchell@g.austincc.edu'
+    )
+    returning id into profile_id;
 
-  raise notice 'Created profile with ID: % for user: %', profile_id, new.email;
+    raise notice E'\n=== Profile Created ===\nID: %\nUser: % (ID: %)', profile_id, new.email, new.id;
+  exception when others then
+    raise warning E'\n=== Profile Creation Error ===\nUser: % (ID: %)\nError: % (%)', 
+      new.email, new.id, SQLERRM, SQLSTATE;
+    return new;
+  end;
+
   return new;
 exception
   when others then
-    raise warning 'Failed to create profile for % (ID: %): %', new.email, new.id, SQLERRM;
+    raise warning E'\n=== Unexpected Error ===\nUser: % (ID: %)\nError: % (%)', 
+      new.email, new.id, SQLERRM, SQLSTATE;
     return new;
 end;
 $$;
@@ -106,4 +117,10 @@ exception
   when others then
     raise exception 'Failed to create auth user: %', sqlerrm;
 end;
-$$; 
+$$;
+
+-- Create trigger for handle_new_user
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user(); 

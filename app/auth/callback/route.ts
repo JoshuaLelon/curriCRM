@@ -53,6 +53,11 @@ export async function GET(request: Request) {
           cookieStore.set({ name, value: '', ...options })
         },
       },
+      global: {
+        headers: {
+          'Accept': 'application/json'
+        }
+      }
     }
   )
 
@@ -65,6 +70,28 @@ export async function GET(request: Request) {
     if (!session || sessionError) {
       console.error('Session verification failed:', sessionError || 'No session')
       return NextResponse.redirect(new URL('/login?error=no_session', request.url))
+    }
+
+    // Ensure user has a profile
+    const { data: profiles, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', session.user.id)
+
+    if (!profiles?.length) {
+      // Create profile if it doesn't exist
+      const { error: insertError } = await supabase
+        .from('profiles')
+        .insert([{
+          user_id: session.user.id,
+          email: session.user.email,
+          is_admin: false
+        }])
+
+      if (insertError) {
+        console.error('Failed to create profile:', insertError)
+        return NextResponse.redirect(new URL('/login?error=profile_creation_failed', request.url))
+      }
     }
 
     // Create response with redirect

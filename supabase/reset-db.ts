@@ -29,43 +29,43 @@ const supabaseClient = createClient(
 )
 
 // Extract database URL from Supabase URL
-const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL!.split('//')[1].split('.')[0]
+const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.match(/(?:https?:\/\/)?([^.]+)/)?.[1] ?? ''
 console.log('Project ref:', projectRef)
 
 // Direct connection string format from Supabase docs
-const dbUrl = `postgresql://postgres:${process.env.SUPABASE_DB_PASSWORD}@${projectRef}.supabase.co:5432/postgres`
-console.log('Database URL (without password):', dbUrl.replace(process.env.SUPABASE_DB_PASSWORD!, '****'))
+const dbUrl = `postgresql://postgres:${process.env.SUPABASE_DB_PASSWORD}@db.${projectRef}.supabase.co:5432/postgres?sslmode=require`
+
+// Update the client configuration to match working pattern
+const client = new Client({ 
+  connectionString: dbUrl
+})
 
 // Validation functions
 async function validateSupabaseUrl(url: string) {
-  // Basic format check
-  if (!url.startsWith('https://') || !url.endsWith('.supabase.co')) {
-    throw new Error('Invalid NEXT_PUBLIC_SUPABASE_URL format. Must start with https:// and end with .supabase.co')
+  if (!url.startsWith('https://') || !url.includes('.supabase.co')) {
+    throw new Error('Invalid NEXT_PUBLIC_SUPABASE_URL format')
   }
   
-  // Simple health check using REST API
   try {
     const response = await fetch(`${url}/rest/v1/`, {
       headers: {
         'Content-Type': 'application/json'
       }
     })
-    // 401/404 are fine - they mean we reached Supabase but just don't have permission
     if (response.status !== 401 && response.status !== 404 && !response.ok) {
-      throw new Error(`Unexpected response: ${response.status} ${response.statusText}`)
+      throw new Error(`Unexpected response: ${response.status}`)
     }
+    console.log('✓ Supabase URL is valid and reachable')
   } catch (error) {
     throw new Error(`Could not connect to Supabase URL: ${error}`)
   }
 }
 
 async function validateServiceRoleKey(url: string, key: string) {
-  // Basic format check
-  if (!key.startsWith('eyJ') || key.length < 100) {
-    throw new Error('Invalid SUPABASE_SERVICE_ROLE_KEY format. Should be a JWT token starting with eyJ')
+  if (!key.startsWith('eyJ')) {
+    throw new Error('Invalid SUPABASE_SERVICE_ROLE_KEY format')
   }
   
-  // Simple auth check using REST API
   try {
     const response = await fetch(`${url}/rest/v1/`, {
       headers: {
@@ -77,48 +77,35 @@ async function validateServiceRoleKey(url: string, key: string) {
     if (response.status === 401) {
       throw new Error('Service role key authentication failed')
     }
-    
-    // Any response except 401 is fine - even 404 means we authenticated but endpoint doesn't exist
-    if (!response.ok && response.status !== 404) {
-      throw new Error(`Unexpected response: ${response.status} ${response.statusText}`)
-    }
+    console.log('✓ Service role key is valid')
   } catch (error) {
     throw new Error(`Service role key check failed: ${error}`)
   }
 }
 
 async function validateDbPassword(url: string, password: string) {
-  // Basic format check
-  if (password.length < 8) {
-    throw new Error('SUPABASE_DB_PASSWORD seems too short to be valid')
-  }
-  
-  // Simple connection test
-  const projectRef = url.split('//')[1].split('.')[0]
-  const testDbUrl = `postgresql://postgres:${password}@${projectRef}.supabase.co:5432/postgres`
   const client = new Client({ 
-    connectionString: testDbUrl,
+    connectionString: dbUrl,
     ssl: {
       rejectUnauthorized: false
     }
   })
   
   try {
+    console.log('Attempting database connection...')
     await client.connect()
     const result = await client.query('SELECT version()')
     await client.end()
     if (!result.rows[0].version) {
       throw new Error('Could not get database version')
     }
+    console.log('✓ Database password is valid and connection successful')
   } catch (error: any) {
-    if (typeof error.message === 'string') {
-      if (error.message.includes('password authentication failed')) {
-        throw new Error('Database password is incorrect')
-      } else if (error.message.includes('ENOTFOUND')) {
-        throw new Error('Could not resolve database hostname. Your IP might not be allowed in the Supabase dashboard.')
-      }
+    await client.end().catch(() => {})
+    if (error.message.includes('password authentication failed')) {
+      throw new Error('Database password is incorrect')
     }
-    throw new Error(`Database connection failed: ${error}`)
+    throw new Error(`Database connection failed: ${error.message}`)
   }
 }
 

@@ -44,12 +44,28 @@ export default function HomePage() {
         }
 
         // Get user's profile to determine role
-        const { data: profile, error: profileError } = await supabase
+        const { data: profiles, error: profileError } = await supabase
           .from("profiles")
           .select("*")
           .eq("user_id", currentUser.id)
-          .single()
         if (profileError) throw profileError
+
+        // Use the first profile or create one if none exists
+        let profile = profiles?.[0]
+        if (!profile) {
+          const { data: newProfile, error: insertError } = await supabase
+            .from("profiles")
+            .insert([{
+              user_id: currentUser.id,
+              email: currentUser.email,
+              is_admin: false
+            }])
+            .select()
+            .single()
+          
+          if (insertError) throw insertError
+          profile = newProfile
+        }
 
         console.log('Profile data:', profile)
 

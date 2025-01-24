@@ -11,7 +11,7 @@ import { canChat, canViewChat } from "@/utils/request-permissions"
 interface ChatProps {
   request: Request
   currentUser: {
-    id: number
+    id: string | number
     role: UserRole
   }
   onMessageSent?: () => void
@@ -26,6 +26,18 @@ export default function Chat({ request, currentUser, onMessageSent }: ChatProps)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const canSendMessages = canChat(request, currentUser)
+  console.log('Chat debug:', {
+    canSendMessages,
+    request: {
+      id: request.id,
+      accepted_at: request.accepted_at,
+      started_at: request.started_at,
+      finished_at: request.finished_at,
+      student_id: request.student_id,
+      expert_id: request.expert_id
+    },
+    currentUser
+  })
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -86,7 +98,7 @@ export default function Chat({ request, currentUser, onMessageSent }: ChatProps)
         {
           content: newMessage.trim(),
           request_id: request.id,
-          sender_id: currentUser.id,
+          sender_id: typeof currentUser.id === 'string' ? parseInt(currentUser.id) : currentUser.id,
         },
       ])
 

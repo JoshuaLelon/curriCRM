@@ -43,8 +43,8 @@ export default function ExpertView({
         currentUser={currentUser}
       />
 
-      {/* Show chat for not_started and in_progress states if assigned */}
-      {(status === "not_started" || status === "in_progress") && request.expert_id === currentUser.id && (
+      {/* Show chat for all states except not_accepted */}
+      {status !== "not_accepted" && (
         <Chat
           request={request}
           currentUser={currentUser}
@@ -62,15 +62,9 @@ export default function ExpertView({
           onSubmit={onSubmit}
         />
       ) : status === "finished" ? (
-        <>
-          <Chat
-            request={request}
-            currentUser={currentUser}
-          />
-          <CurriculumViewTable
-            nodes={request.curriculum?.curriculum_nodes || []}
-          />
-        </>
+        <CurriculumViewTable
+          nodes={request.curriculum?.curriculum_nodes || []}
+        />
       ) : null}
     </div>
   )

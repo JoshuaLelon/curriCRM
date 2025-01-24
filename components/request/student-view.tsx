@@ -38,25 +38,19 @@ export default function StudentView({
         onUpdate={onRequestUpdate}
       />
 
-      {/* Show chat for not_started and in_progress states */}
-      {(status === "not_started" || status === "in_progress") && (
+      {/* Show chat for all states except not_accepted */}
+      {status !== "not_accepted" && (
         <Chat
           request={request}
           currentUser={currentUser}
         />
       )}
 
-      {/* Show chat history for finished state */}
+      {/* Show curriculum in finished state */}
       {status === "finished" && (
-        <>
-          <Chat
-            request={request}
-            currentUser={currentUser}
-          />
-          <CurriculumViewTable
-            nodes={request.curriculum?.curriculum_nodes || []}
-          />
-        </>
+        <CurriculumViewTable
+          nodes={request.curriculum?.curriculum_nodes || []}
+        />
       )}
 
       {/* Show delete button only in not_accepted state */}

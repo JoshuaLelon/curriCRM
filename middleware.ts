@@ -29,6 +29,11 @@ export async function middleware(req: NextRequest) {
           })
         },
       },
+      global: {
+        headers: {
+          'Accept': 'application/json'
+        }
+      }
     }
   )
 

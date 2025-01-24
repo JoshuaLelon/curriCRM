@@ -54,6 +54,11 @@ export function createServerSupabaseClient() {
         autoRefreshToken: true,
         detectSessionInUrl: true,
         persistSession: true,
+      },
+      global: {
+        headers: {
+          'Accept': 'application/json'
+        }
       }
     }
   )

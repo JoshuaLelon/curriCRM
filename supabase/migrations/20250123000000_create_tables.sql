@@ -73,13 +73,15 @@ create table public.curriculum_nodes (
 );
 
 -- Create messages table
+create sequence if not exists public.messages_id_seq;
 create table public.messages (
-  id int8 primary key,
+  id int8 primary key default nextval('public.messages_id_seq'),
   request_id uuid references public.requests on delete cascade,
   content text,
   created_at timestamptz default timezone('utc'::text, now()),
   sender_id int8 references public.profiles(id)
 );
+alter sequence public.messages_id_seq owned by public.messages.id;
 
 -- Enable RLS on all tables
 alter table public.profiles enable row level security;
