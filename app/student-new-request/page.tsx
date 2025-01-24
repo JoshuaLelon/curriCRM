@@ -50,36 +50,60 @@ export default function StudentNewRequest() {
 
   const handleSubmit = async (formData: any) => {
     try {
-      // Get current user's profile ID
-      const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser()
-      if (userError) throw userError
-      if (!currentUser) throw new Error("Not authenticated")
+      // Get current session
+      console.log('Getting session...')
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      console.log('Session data:', session, 'Session error:', sessionError)
+      
+      if (sessionError) throw sessionError
+      if (!session) throw new Error("Not authenticated")
 
+      // Get current user's profile ID
+      console.log('Getting profile for user:', session.user.id)
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("id")
-        .eq("user_id", currentUser.id)
+        .eq("user_id", session.user.id)
         .single()
+      console.log('Profile data:', profile, 'Profile error:', profileError)
+      
       if (profileError) throw profileError
+      if (!profile) throw new Error("Profile not found")
 
-      // Create source
-      const { data: source, error: sourceError } = await supabase
-        .from("sources")
-        .insert([{
-          title: formData.sourceName,
-          url: formData.sourceUrl,
-          created_by: profile.id
-        }])
-        .select()
-        .single()
-      if (sourceError) throw sourceError
-
-      // Create request
-      const response = await fetch("/api/requests", {
+      // Create source using the API route
+      console.log('Creating source...')
+      const sourceResponse = await fetch("/api/sources", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`
         },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: formData.sourceName,
+          url: formData.sourceUrl
+        }),
+      })
+      console.log('Source response status:', sourceResponse.status)
+
+      if (!sourceResponse.ok) {
+        const errorData = await sourceResponse.json().catch(() => null)
+        console.error('Source creation failed:', errorData)
+        throw new Error(errorData?.error || "Failed to create source")
+      }
+
+      const { data: source } = await sourceResponse.json()
+      console.log('Source created:', source)
+
+      // Create request
+      console.log('Creating request...')
+      const requestResponse = await fetch("/api/requests", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`
+        },
+        credentials: 'include',
         body: JSON.stringify({
           source_id: source.id,
           student_id: profile.id,
@@ -90,14 +114,15 @@ export default function StudentNewRequest() {
         }),
       })
 
-      if (!response.ok) {
-        throw new Error("Failed to create request")
+      if (!requestResponse.ok) {
+        const errorData = await requestResponse.json().catch(() => null)
+        throw new Error(errorData?.error || "Failed to create request")
       }
 
       router.push("/home")
     } catch (error) {
       console.error("Error creating request:", error)
-      alert("Failed to create request")
+      setError(error instanceof Error ? error.message : "Failed to create request")
     }
   }
 

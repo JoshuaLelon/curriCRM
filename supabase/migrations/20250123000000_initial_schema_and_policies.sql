@@ -38,16 +38,31 @@ alter sequence public.profiles_id_seq owned by public.profiles.id;
 
 -- Create sources table
 create table public.sources (
-  id uuid primary key,
+  id uuid primary key default gen_random_uuid(),
   created_at timestamptz default timezone('utc'::text, now()),
   title varchar,
   URL text,
   created_by int8 references public.profiles(id)
 );
 
+-- Enable RLS on sources table
+alter table public.sources enable row level security;
+
+-- Policy to allow authenticated users to insert sources
+create policy "Authenticated users can insert sources"
+on public.sources for insert
+to authenticated
+with check (true);
+
+-- Policy to allow all authenticated users to view any source
+create policy "Authenticated users can view all sources"
+on public.sources for select
+to authenticated
+using (true);
+
 -- Create requests table
 create table public.requests (
-  id uuid primary key,
+  id uuid primary key default gen_random_uuid(),
   created_at timestamptz default timezone('utc'::text, now()),
   accepted_at timestamptz,
   started_at timestamptz,
@@ -116,14 +131,13 @@ create policy "Sources are viewable by everyone"
   on public.sources for select
   using (true);
 
-create policy "Experts can create sources"
+create policy "Authenticated users can create sources"
   on public.sources for insert
   with check (
     exists (
       select 1 from public.profiles p
       where p.id = created_by
       and p.user_id = auth.uid()
-      and p.specialty is not null
     )
   );
 

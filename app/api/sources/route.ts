@@ -42,51 +42,69 @@ export async function GET(request: NextRequest) {
 // POST /api/sources
 export async function POST(request: NextRequest) {
   try {
+    console.log('POST /api/sources - Starting request handling')
+    
     const supabase = createRouteHandlerClient({ cookies })
+
     const json = await request.json()
+    console.log('Request body:', json)
 
-    // Get current user's profile
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError) throw userError
-
-    if (!user) {
+    // Get session first
+    console.log('Getting session...')
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    
+    if (sessionError || !session) {
+      console.error('Session error:', sessionError)
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: sessionError?.message || "Not authenticated" },
         { status: 401 }
       )
     }
 
-    // Get user's profile ID
+    // Get profile ID
+    console.log('Getting profile for user:', session.user.id)
     const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('user_id', user.id)
+      .from("profiles")
+      .select("id")
+      .eq("user_id", session.user.id)
       .single()
-    if (profileError) throw profileError
+    
+    console.log('Profile data:', profile, 'Profile error:', profileError)
+
+    if (profileError || !profile) {
+      console.error('Profile error:', profileError)
+      return NextResponse.json(
+        { error: "Profile not found" },
+        { status: 404 }
+      )
+    }
 
     // Create source
+    console.log('Creating source with profile:', profile.id)
     const { data, error } = await supabase
-      .from('sources')
+      .from("sources")
       .insert([{
-        title: json.title,
-        URL: json.URL,
+        ...json,
         created_by: profile.id
       }])
       .select()
+      .single()
+    
+    console.log('Source creation result:', data, 'Source creation error:', error)
 
     if (error) {
-      console.error('Database error:', error)
+      console.error("Source creation error:", error)
       return NextResponse.json(
-        { error: 'Failed to create source' },
+        { error: "Failed to create source: " + error.message },
         { status: 500 }
       )
     }
 
-    return NextResponse.json({ data: data[0] })
+    return NextResponse.json({ data })
   } catch (error) {
-    console.error('Error processing request:', error)
+    console.error("Error processing request:", error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 }
     )
   }
