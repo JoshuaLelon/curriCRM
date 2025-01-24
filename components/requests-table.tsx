@@ -45,6 +45,16 @@ export default function RequestsTable({
     }
   }
 
+  const getStatusOrder = (status: string): number => {
+    switch (status) {
+      case "not_accepted": return 0
+      case "not_started": return 1
+      case "in_progress": return 2
+      case "finished": return 3
+      default: return 4
+    }
+  }
+
   return (
     <div className="rounded-md border">
       <Table>
@@ -62,7 +72,13 @@ export default function RequestsTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {requests.map((request) => {
+          {[...requests]
+            .sort((a, b) => {
+              const statusA = getRequestStatus(a)
+              const statusB = getRequestStatus(b)
+              return getStatusOrder(statusA) - getStatusOrder(statusB)
+            })
+            .map((request) => {
             const status = getRequestStatus(request)
             return (
               <TableRow
