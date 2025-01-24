@@ -2,15 +2,26 @@
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { CurriculumNode } from "@/types/request"
+import CurriculumTree from "@/components/curriculum-tree"
 
 interface CurriculumViewTableProps {
   nodes: CurriculumNode[]
 }
 
 export default function CurriculumViewTable({ nodes }: CurriculumViewTableProps) {
+  // Sort nodes by level first, then by index within each level
+  const sortedNodes = [...nodes].sort((a, b) => {
+    if (a.level !== b.level) {
+      return a.level - b.level
+    }
+    return a.index_in_curriculum - b.index_in_curriculum
+  })
+
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Curriculum</h2>
+
+      <CurriculumTree nodes={nodes} />
 
       <Table>
         <TableHeader>
@@ -23,18 +34,22 @@ export default function CurriculumViewTable({ nodes }: CurriculumViewTableProps)
           </TableRow>
         </TableHeader>
         <TableBody>
-          {nodes.map((node) => (
+          {sortedNodes.map((node) => (
             <TableRow key={node.id}>
-              <TableCell>{node.source.title}</TableCell>
+              <TableCell>{node.source?.title || "Untitled"}</TableCell>
               <TableCell>
-                <a
-                  href={node.source.url}
-                  className="text-blue-600 hover:underline"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {node.source.url}
-                </a>
+                {node.source?.url ? (
+                  <a
+                    href={node.source.url}
+                    className="text-blue-600 hover:underline"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {node.source.url}
+                  </a>
+                ) : (
+                  "No URL"
+                )}
               </TableCell>
               <TableCell>{node.start_time}</TableCell>
               <TableCell>{node.end_time}</TableCell>

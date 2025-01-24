@@ -94,7 +94,16 @@ select * from (values
   ('00000000-0000-0000-0000-000000000003'::uuid, 'ChatGPT API Tutorial', 'https://platform.openai.com/docs/tutorials/web-qa-embeddings', expert_profile_id),
   ('00000000-0000-0000-0000-000000000004'::uuid, 'Machine Learning Fundamentals', 'https://www.deeplearning.ai/courses/machine-learning-specialization/', expert_profile_id),
   ('00000000-0000-0000-0000-000000000005'::uuid, 'Software Design Patterns', 'https://refactoring.guru/design-patterns', expert_profile_id),
-  ('00000000-0000-0000-0000-000000000006'::uuid, 'AI Ethics and Safety', 'https://www.edx.org/learn/artificial-intelligence/harvard-university-ethics-and-ai', expert_profile_id)
+  ('00000000-0000-0000-0000-000000000006'::uuid, 'AI Ethics and Safety', 'https://www.edx.org/learn/artificial-intelligence/harvard-university-ethics-and-ai', expert_profile_id),
+  -- New vector spaces sources
+  ('00000000-0000-0000-0000-000000000011'::uuid, 'Introduction to Linear Algebra', 'https://math.mit.edu/~gs/linearalgebra/', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000012'::uuid, 'Vector Space Basics', 'https://en.wikipedia.org/wiki/Vector_space', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000013'::uuid, 'Linear Transformations', 'https://en.wikipedia.org/wiki/Linear_map', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000014'::uuid, 'Group Theory Fundamentals', 'https://en.wikipedia.org/wiki/Group_theory', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000015'::uuid, 'Representation Theory', 'https://en.wikipedia.org/wiki/Representation_theory', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000016'::uuid, 'Vector Space Representations', 'https://en.wikipedia.org/wiki/Group_representation', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000017'::uuid, 'Dimension and Basis', 'https://en.wikipedia.org/wiki/Dimension_(vector_space)', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000018'::uuid, 'Homomorphisms in Vector Spaces', 'https://en.wikipedia.org/wiki/Linear_map#Homomorphisms', expert_profile_id)
 ) as v(id, title, url, created_by)
 where not exists (select 1 from public.sources where sources.id = v.id);
 
@@ -104,7 +113,9 @@ select * from (values
   ('00000000-0000-0000-0000-000000000101'::uuid, now() - interval '3 days', null, null, null, '00000000-0000-0000-0000-000000000005'::uuid, 'tutorial'::public.content_type, 'software'::public.tag, jlelon_profile_id, expert_profile_id),
   ('00000000-0000-0000-0000-000000000102'::uuid, now() - interval '2 days', now() - interval '1 day', null, null, '00000000-0000-0000-0000-000000000006'::uuid, 'explanation'::public.content_type, 'ai'::public.tag, jlelon_profile_id, expert_profile_id),
   ('00000000-0000-0000-0000-000000000103'::uuid, now() - interval '5 days', now() - interval '4 days', now() - interval '3 days', null, '00000000-0000-0000-0000-000000000001'::uuid, 'how_to_guide'::public.content_type, 'math'::public.tag, jlelon_profile_id, expert_profile_id),
-  ('00000000-0000-0000-0000-000000000104'::uuid, now() - interval '10 days', now() - interval '9 days', now() - interval '8 days', now() - interval '1 day', '00000000-0000-0000-0000-000000000002'::uuid, 'reference'::public.content_type, 'software'::public.tag, jlelon_profile_id, expert_profile_id)
+  ('00000000-0000-0000-0000-000000000104'::uuid, now() - interval '10 days', now() - interval '9 days', now() - interval '8 days', now() - interval '1 day', '00000000-0000-0000-0000-000000000002'::uuid, 'reference'::public.content_type, 'software'::public.tag, jlelon_profile_id, expert_profile_id),
+  -- New vector spaces request
+  ('00000000-0000-0000-0000-000000000105'::uuid, now() - interval '10 days', now() - interval '9 days', now() - interval '8 days', now() - interval '1 day', '00000000-0000-0000-0000-000000000015'::uuid, 'explanation'::public.content_type, 'math'::public.tag, jlelon_profile_id, expert_profile_id)
 ) as v(id, created_at, accepted_at, started_at, finished_at, source_id, content_type, tag, student_id, expert_id)
 where not exists (select 1 from public.requests where requests.id = v.id);
 
@@ -112,7 +123,9 @@ where not exists (select 1 from public.requests where requests.id = v.id);
 insert into public.curriculums (id, request_id)
 select * from (values
   ('00000000-0000-0000-0000-000000000201'::uuid, '00000000-0000-0000-0000-000000000103'::uuid),
-  ('00000000-0000-0000-0000-000000000202'::uuid, '00000000-0000-0000-0000-000000000104'::uuid)
+  ('00000000-0000-0000-0000-000000000202'::uuid, '00000000-0000-0000-0000-000000000104'::uuid),
+  -- New vector spaces curriculum
+  ('00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000105'::uuid)
 ) as v(id, request_id)
 where not exists (select 1 from public.curriculums where curriculums.id = v.id);
 
@@ -122,7 +135,17 @@ select * from (values
   ('00000000-0000-0000-0000-000000000301'::uuid, '00000000-0000-0000-0000-000000000201'::uuid, '00000000-0000-0000-0000-000000000001'::uuid, 0, 300, 1, 1),
   ('00000000-0000-0000-0000-000000000302'::uuid, '00000000-0000-0000-0000-000000000201'::uuid, '00000000-0000-0000-0000-000000000002'::uuid, 0, 300, 2, 2),
   ('00000000-0000-0000-0000-000000000303'::uuid, '00000000-0000-0000-0000-000000000202'::uuid, '00000000-0000-0000-0000-000000000003'::uuid, 0, 300, 1, 1),
-  ('00000000-0000-0000-0000-000000000304'::uuid, '00000000-0000-0000-0000-000000000202'::uuid, '00000000-0000-0000-0000-000000000004'::uuid, 0, 300, 2, 2)
+  ('00000000-0000-0000-0000-000000000304'::uuid, '00000000-0000-0000-0000-000000000202'::uuid, '00000000-0000-0000-0000-000000000004'::uuid, 0, 300, 2, 2),
+  -- New vector spaces curriculum nodes - Updated indices for depth-first traversal
+  -- Left branch
+  ('00000000-0000-0000-0000-000000000401'::uuid, '00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000011'::uuid, 0, 300, 0, 0), -- Linear Algebra
+  ('00000000-0000-0000-0000-000000000403'::uuid, '00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000012'::uuid, 0, 300, 1, 1), -- Vector Space Basics
+  ('00000000-0000-0000-0000-000000000405'::uuid, '00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000013'::uuid, 0, 300, 2, 2), -- Linear Transformations
+  ('00000000-0000-0000-0000-000000000407'::uuid, '00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000016'::uuid, 0, 300, 3, 3), -- Vector Space Representations
+  -- Right branch
+  ('00000000-0000-0000-0000-000000000402'::uuid, '00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000014'::uuid, 0, 300, 0, 4), -- Group Theory
+  ('00000000-0000-0000-0000-000000000404'::uuid, '00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000017'::uuid, 0, 300, 1, 5), -- Dimension and Basis
+  ('00000000-0000-0000-0000-000000000406'::uuid, '00000000-0000-0000-0000-000000000203'::uuid, '00000000-0000-0000-0000-000000000018'::uuid, 0, 300, 2, 6)  -- Homomorphisms
 ) as v(id, curriculum_id, source_id, start_time, end_time, level, index_in_curriculum)
 where not exists (select 1 from public.curriculum_nodes where curriculum_nodes.id = v.id);
 
@@ -132,7 +155,12 @@ select * from (values
   ('00000000-0000-0000-0000-000000000103'::uuid, 'Hi, I need help understanding this concept.', jlelon_profile_id),
   ('00000000-0000-0000-0000-000000000103'::uuid, 'Sure, I can help you with that.', expert_profile_id),
   ('00000000-0000-0000-0000-000000000104'::uuid, 'Could you explain this in more detail?', jlelon_profile_id),
-  ('00000000-0000-0000-0000-000000000104'::uuid, 'Here''s a detailed explanation...', expert_profile_id)
+  ('00000000-0000-0000-0000-000000000104'::uuid, 'Here''s a detailed explanation...', expert_profile_id),
+  -- New vector spaces messages
+  ('00000000-0000-0000-0000-000000000105'::uuid, 'Hi, I need help understanding vector space representations. The Wikipedia article is a bit dense.', jlelon_profile_id),
+  ('00000000-0000-0000-0000-000000000105'::uuid, 'I understand. Let me break it down into a structured curriculum that builds up from the fundamentals.', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000105'::uuid, 'Thanks! The visual tree really helps see how the concepts connect.', jlelon_profile_id),
+  ('00000000-0000-0000-0000-000000000105'::uuid, 'Exactly! Notice how we start with basic linear algebra and group theory, then build up to the more advanced concepts.', expert_profile_id)
 ) as v(request_id, content, sender_id)
 where not exists (select 1 from public.messages where messages.content = v.content);
 

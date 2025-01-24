@@ -28,6 +28,9 @@ The application follows a role-based architecture with unified pages that adapt 
 - `/login`: Unified login page for all users
 - `/home`: Role-based dashboard showing relevant requests
 - `/request/[id]`: Unified request page with role-specific views and permissions
+  - Features a curriculum tree visualization for finished requests, showing the prerequisite relationships between curriculum nodes
+  - Each node represents a source (e.g., video, article) with its title and URL
+  - Tree levels indicate dependency relationships (higher level nodes depend on lower level nodes)
 - `/student-new-request`: Page for creating new requests
 
 ### Components
@@ -36,6 +39,8 @@ The application follows a role-based architecture with unified pages that adapt 
 - `components/request/`: Request-related components including:
   - Shared components (details, chat, curriculum tables)
   - Role-specific views
+- `components/curriculum-tree.tsx`: Interactive tree visualization for curriculum prerequisites using React Flow
+- `components/request/curriculum-view-table.tsx`: Table view of curriculum nodes with integrated tree visualization
 
 ### Utils
 
