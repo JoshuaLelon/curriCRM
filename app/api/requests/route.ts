@@ -9,6 +9,8 @@ export async function GET(request: NextRequest) {
     const expertId = searchParams.get("expertId")
     const studentId = searchParams.get("studentId")
 
+    console.log('GET /api/requests - Query params:', { expertId, studentId })
+
     if (!expertId && !studentId) {
       return NextResponse.json(
         { error: "Either expertId or studentId is required" },
@@ -19,6 +21,7 @@ export async function GET(request: NextRequest) {
     const supabase = createRouteHandlerClient({ cookies })
 
     // Get requests based on the provided ID
+    console.log('Building request query...')
     const query = supabase
       .from("requests")
       .select(`
@@ -30,8 +33,10 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false })
 
     if (expertId) {
+      console.log('Filtering by expert_id:', expertId)
       query.eq("expert_id", expertId)
     } else if (studentId) {
+      console.log('Filtering by student_id:', studentId)
       query.eq("student_id", studentId)
     }
 
@@ -44,6 +49,13 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    console.log('Request data:', data)
+    console.log('Source data for each request:', data?.map(r => ({ 
+      request_id: r.id, 
+      source_id: r.source_id, 
+      source: r.source 
+    })))
 
     return NextResponse.json({ data })
   } catch (error) {

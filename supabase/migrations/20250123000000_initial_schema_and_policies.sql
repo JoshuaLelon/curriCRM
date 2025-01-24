@@ -437,10 +437,12 @@ begin
     -- Create sources
     insert into public.sources (id, title, URL, created_by)
     values
-      ('00000000-0000-0000-0000-000000000001'::uuid, 'Introduction to Algorithms', 'https://www.youtube.com/watch?v=example1', expert_profile_id),
-      ('00000000-0000-0000-0000-000000000002'::uuid, 'Data Structures Basics', 'https://www.youtube.com/watch?v=example2', expert_profile_id),
-      ('00000000-0000-0000-0000-000000000003'::uuid, 'Understanding Big O Notation', 'https://www.youtube.com/watch?v=example3', expert_profile_id),
-      ('00000000-0000-0000-0000-000000000004'::uuid, 'Machine Learning Fundamentals', 'https://www.youtube.com/watch?v=example4', expert_profile_id);
+      ('00000000-0000-0000-0000-000000000001'::uuid, 'Introduction to Algorithms', 'https://www.coursera.org/learn/algorithms-part1', expert_profile_id),
+      ('00000000-0000-0000-0000-000000000002'::uuid, 'Data Structures Basics', 'https://www.geeksforgeeks.org/data-structures/', expert_profile_id),
+      ('00000000-0000-0000-0000-000000000003'::uuid, 'ChatGPT API Tutorial', 'https://platform.openai.com/docs/tutorials/web-qa-embeddings', expert_profile_id),
+      ('00000000-0000-0000-0000-000000000004'::uuid, 'Machine Learning Fundamentals', 'https://www.deeplearning.ai/courses/machine-learning-specialization/', expert_profile_id),
+      ('00000000-0000-0000-0000-000000000005'::uuid, 'Software Design Patterns', 'https://refactoring.guru/design-patterns', expert_profile_id),
+      ('00000000-0000-0000-0000-000000000006'::uuid, 'AI Ethics and Safety', 'https://www.edx.org/learn/artificial-intelligence/harvard-university-ethics-and-ai', expert_profile_id);
 
     -- Create requests
     insert into public.requests (
@@ -462,7 +464,7 @@ begin
         null,
         null,
         null,
-        null,
+        '00000000-0000-0000-0000-000000000005'::uuid,
         'tutorial'::public.content_type,
         'software'::public.tag,
         student_profile_id,
@@ -474,7 +476,7 @@ begin
         now() - interval '1 day',
         null,
         null,
-        null,
+        '00000000-0000-0000-0000-000000000006'::uuid,
         'explanation'::public.content_type,
         'ai'::public.tag,
         student_profile_id,

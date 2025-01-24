@@ -51,7 +51,8 @@ export async function PATCH(
         .from("sources")
         .update({
           title: source.title,
-          URL: source.URL
+          url: source.url,
+          created_by: profile.id
         })
         .eq("id", source.id)
 

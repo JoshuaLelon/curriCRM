@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
         .from('sources')
         .insert([{
           title: json.source.title,
-          URL: json.source.URL,
+          url: json.source.url,
           created_by: json.source.created_by
         }])
         .select()
@@ -117,7 +117,7 @@ export async function PATCH(
         .from('sources')
         .update({
           title: source.title,
-          URL: source.URL
+          url: source.url
         })
         .eq('id', source.id)
 

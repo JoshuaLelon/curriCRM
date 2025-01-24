@@ -5,7 +5,7 @@ export type UserRole = "student" | "expert" | "admin"
 export interface Source {
   id: string
   title: string
-  URL: string
+  url: string
   created_by: string
 }
 

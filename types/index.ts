@@ -13,7 +13,7 @@ export interface Profile {
 export interface Source {
   id: string
   title: string
-  URL: string
+  url: string
   created_by: number
   created_at: string
 }

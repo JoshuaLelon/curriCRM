@@ -63,7 +63,7 @@ export default function ExpertRequestsTable({ requests, onRequestClick, onAdvanc
                 <TableCell className="font-medium">
                   {request.source ? (
                     <a
-                      href={request.source.URL}
+                      href={request.source.url}
                       className="text-blue-600 hover:underline"
                       onClick={(e) => e.stopPropagation()}
                     >

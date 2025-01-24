@@ -28,12 +28,12 @@ export default function CurriculumViewTable({ nodes }: CurriculumViewTableProps)
               <TableCell>{node.source.title}</TableCell>
               <TableCell>
                 <a
-                  href={node.source.URL}
+                  href={node.source.url}
+                  className="text-blue-600 hover:underline"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-500 hover:underline"
                 >
-                  {node.source.URL}
+                  {node.source.url}
                 </a>
               </TableCell>
               <TableCell>{node.start_time}</TableCell>

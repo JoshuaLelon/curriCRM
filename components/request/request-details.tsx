@@ -34,7 +34,7 @@ export default function RequestDetails({
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState({
     sourceName: request.source?.title || "",
-    sourceUrl: request.source?.URL || "",
+    sourceUrl: request.source?.url || "",
     tag: request.tag,
     type: request.content_type,
   })
@@ -53,7 +53,7 @@ export default function RequestDetails({
       source: {
         ...request.source,
         title: formData.sourceName,
-        URL: formData.sourceUrl,
+        url: formData.sourceUrl,
       } as Source,
     })
     setIsEditing(false)
@@ -137,7 +137,20 @@ export default function RequestDetails({
         </div>
         <div>
           <Label className="text-gray-500">URL</Label>
-          <div>{request.source?.URL || "No URL"}</div>
+          <div>
+            {request.source?.url ? (
+              <a
+                href={request.source.url}
+                className="text-blue-600 hover:underline"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {request.source.url}
+              </a>
+            ) : (
+              "No URL"
+            )}
+          </div>
         </div>
         <div>
           <Label className="text-gray-500">Tag</Label>

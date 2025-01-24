@@ -30,7 +30,7 @@ function EditableRow({ node, onUpdateNode, onUpdateSource }: EditableRowProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState({
     title: node.source.title,
-    url: node.source.URL,
+    url: node.source.url,
     startTime: node.start_time.toString(),
     endTime: node.end_time.toString(),
     level: node.level.toString(),
@@ -39,7 +39,7 @@ function EditableRow({ node, onUpdateNode, onUpdateSource }: EditableRowProps) {
   const handleSubmit = () => {
     onUpdateSource({
       title: formData.title,
-      URL: formData.url,
+      url: formData.url,
     })
     onUpdateNode({
       start_time: parseInt(formData.startTime),
@@ -98,7 +98,7 @@ function EditableRow({ node, onUpdateNode, onUpdateSource }: EditableRowProps) {
   return (
     <TableRow>
       <TableCell>{node.source.title}</TableCell>
-      <TableCell>{node.source.URL}</TableCell>
+      <TableCell>{node.source.url}</TableCell>
       <TableCell>{node.start_time}</TableCell>
       <TableCell>{node.end_time}</TableCell>
       <TableCell>{node.level}</TableCell>
@@ -155,7 +155,7 @@ export default function CurriculumTable({
             ) : (
               <TableRow key={node.id}>
                 <TableCell>{node.source.title}</TableCell>
-                <TableCell>{node.source.URL}</TableCell>
+                <TableCell>{node.source.url}</TableCell>
                 <TableCell>{node.start_time}</TableCell>
                 <TableCell>{node.end_time}</TableCell>
                 <TableCell>{node.level}</TableCell>

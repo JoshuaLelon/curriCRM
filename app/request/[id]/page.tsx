@@ -27,12 +27,14 @@ export default function RequestPage({ params }: { params: { id: string } }) {
   // Fetch request data and user profile
   useEffect(() => {
     async function loadData() {
+      console.log('Starting loadData for request:', params.id)
       try {
         // Get current user
         const { data: { user }, error: userError } = await supabase.auth.getUser()
         if (userError) throw userError
 
         if (!user) {
+          console.log('No user found, redirecting to login')
           router.push("/login")
           return
         }
@@ -45,15 +47,19 @@ export default function RequestPage({ params }: { params: { id: string } }) {
           .single()
         if (profileError) throw profileError
 
+        console.log('Profile data:', profileData)
+
         // Map database fields to role
         const profile = {
           ...profileData,
           role: profileData.is_admin ? "admin" : (profileData.specialty ? "expert" : "student")
         }
+        console.log('Mapped profile:', profile)
 
         setCurrentUser(profile)
 
         // Get request details
+        console.log('Fetching request details...')
         const { data: requestData, error: requestError } = await supabase
           .from("requests")
           .select(`
@@ -75,7 +81,32 @@ export default function RequestPage({ params }: { params: { id: string } }) {
           `)
           .eq("id", params.id)
           .single()
-        if (requestError) throw requestError
+        
+        if (requestError) {
+          console.error('Request fetch error:', requestError)
+          throw requestError
+        }
+
+        console.log('Raw request data:', requestData)
+        console.log('Source data:', requestData?.source)
+        console.log('Source ID from request:', requestData?.source_id)
+
+        // Additional source check
+        if (requestData?.source_id && !requestData?.source) {
+          console.log('Source ID exists but no source data, fetching directly...')
+          const { data: sourceData, error: sourceError } = await supabase
+            .from("sources")
+            .select("*")
+            .eq("id", requestData.source_id)
+            .single()
+          
+          if (sourceError) {
+            console.error('Direct source fetch error:', sourceError)
+          } else {
+            console.log('Directly fetched source:', sourceData)
+            requestData.source = sourceData
+          }
+        }
 
         setRequest(requestData)
 

@@ -8,7 +8,7 @@ import { useState } from "react"
 interface Source {
   id: string
   title: string
-  URL: string
+  url: string
 }
 
 interface Request {
@@ -106,7 +106,7 @@ export default function StudentRequestsTable({ requests }: StudentRequestsTableP
                   <TableCell className="font-medium">
                     {request.source ? (
                       <a
-                        href={request.source.URL}
+                        href={request.source.url}
                         className="text-blue-600 hover:underline"
                         onClick={(e) => e.stopPropagation()}
                       >
