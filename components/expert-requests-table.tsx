@@ -1,12 +1,13 @@
 import type React from "react"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import type { Request } from "@/types"
+import type { Request } from "@/types/request"
+import { getRequestStatus, getStatusLabel } from "@/utils/request-status"
 
 interface ExpertRequestsTableProps {
   requests: Request[]
   onRequestClick: (request: Request) => void
-  onAdvance: (requestId: string) => void
+  onAdvance: (requestId: number) => void
 }
 
 export default function ExpertRequestsTable({ requests, onRequestClick, onAdvance }: ExpertRequestsTableProps) {
@@ -17,20 +18,13 @@ export default function ExpertRequestsTable({ requests, onRequestClick, onAdvanc
     return `${diffDays} days`
   }
 
-  const getStatus = (request: Request): string => {
-    if (request.finished_at) return "finished"
-    if (request.started_at) return "in_progress"
-    if (request.accepted_at) return "accepted"
-    return "not_accepted"
-  }
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case "in_progress":
         return "bg-yellow-200"
       case "finished":
         return "bg-green-200"
-      case "accepted":
+      case "not_started":
         return "bg-blue-200"
       default:
         return "bg-gray-200"
@@ -53,7 +47,7 @@ export default function ExpertRequestsTable({ requests, onRequestClick, onAdvanc
         </TableHeader>
         <TableBody>
           {requests.map((request) => {
-            const status = getStatus(request)
+            const status = getRequestStatus(request)
             return (
               <TableRow
                 key={request.id}
@@ -79,7 +73,7 @@ export default function ExpertRequestsTable({ requests, onRequestClick, onAdvanc
                 <TableCell>{status === "in_progress" ? "14" : "N/A"}</TableCell>
                 <TableCell>
                   <span className={`px-2 py-1 rounded ${getStatusColor(status)}`}>
-                    {status.replace("_", " ")}
+                    {getStatusLabel(status)}
                   </span>
                 </TableCell>
                 <TableCell>

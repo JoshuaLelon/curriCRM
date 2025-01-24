@@ -4,14 +4,15 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { Request, Profile } from "@/types"
+import type { Request } from "@/types/request"
+import { getRequestStatus, getStatusLabel } from "@/utils/request-status"
 
 interface RequestsTableProps {
   requests: Request[]
-  experts: Profile[]
+  experts: Array<{ id: number; email: string }>
   onRequestClick: (request: Request) => void
-  onExpertChange: (requestId: string, expertId: string) => void
-  onDeleteRequest: (requestId: string) => void
+  onExpertChange: (requestId: number, expertId: string) => void
+  onDeleteRequest: (requestId: number) => void
 }
 
 export default function RequestsTable({
@@ -28,13 +29,6 @@ export default function RequestsTable({
     return `${diffDays} days`
   }
 
-  const getStatus = (request: Request): string => {
-    if (request.finished_at) return "finished"
-    if (request.started_at) return "in_progress"
-    if (request.accepted_at) return "accepted"
-    return "not_accepted"
-  }
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case "in_progress":
@@ -43,7 +37,7 @@ export default function RequestsTable({
         return "bg-green-200"
       case "not_accepted":
         return "bg-black text-white"
-      case "accepted":
+      case "not_started":
         return "bg-blue-200"
       default:
         return "bg-gray-200"
@@ -67,7 +61,7 @@ export default function RequestsTable({
         </TableHeader>
         <TableBody>
           {requests.map((request) => {
-            const status = getStatus(request)
+            const status = getRequestStatus(request)
             return (
               <TableRow
                 key={request.id}
@@ -93,7 +87,7 @@ export default function RequestsTable({
                 <TableCell>{status === "in_progress" ? "14" : "N/A"}</TableCell>
                 <TableCell>
                   <span className={`px-2 py-1 rounded ${getStatusColor(status)}`}>
-                    {status.replace("_", " ")}
+                    {getStatusLabel(status)}
                   </span>
                 </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>

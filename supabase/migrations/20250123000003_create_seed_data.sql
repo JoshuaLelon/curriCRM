@@ -6,7 +6,21 @@ declare
   admin_profile_id int8;
   expert_profile_id int8;
   student_profile_id int8;
+  jlelon_user_id uuid := '3fb73773-9bb2-470b-ac44-c49d96190971'::uuid;
+  jlelon_profile_id int8;
 begin
+
+-- Clear all tables in the correct order (respecting foreign key constraints)
+truncate table public.messages cascade;
+truncate table public.curriculum_nodes cascade;
+truncate table public.curriculums cascade;
+truncate table public.requests cascade;
+truncate table public.sources cascade;
+truncate table public.profiles cascade;
+
+-- Reset sequences
+alter sequence public.profiles_id_seq restart with 1;
+alter sequence public.messages_id_seq restart with 1;
 
 -- Check if we have permission to insert into auth.users
 if not exists (
@@ -44,6 +58,13 @@ ELSE
 END IF;
 
 -- Get or create profiles
+select id into jlelon_profile_id from public.profiles where email = 'jlelonmitchell@gmail.com';
+if jlelon_profile_id is null then
+  insert into public.profiles (id, user_id, email, specialty, is_admin)
+  values (nextval('public.profiles_id_seq'), jlelon_user_id, 'jlelonmitchell@gmail.com', null, false)
+  returning id into jlelon_profile_id;
+end if;
+
 select id into admin_profile_id from public.profiles where email = 'joshua.mitchell@g.austincc.edu';
 if admin_profile_id is null then
   insert into public.profiles (id, user_id, email, specialty, is_admin)
@@ -80,10 +101,10 @@ where not exists (select 1 from public.sources where sources.id = v.id);
 -- Create requests if they don't exist and set their source_ids
 insert into public.requests (id, created_at, accepted_at, started_at, finished_at, source_id, content_type, tag, student_id, expert_id)
 select * from (values
-  ('00000000-0000-0000-0000-000000000101'::uuid, now() - interval '3 days', null, null, null, '00000000-0000-0000-0000-000000000005'::uuid, 'tutorial'::public.content_type, 'software'::public.tag, student_profile_id, expert_profile_id),
-  ('00000000-0000-0000-0000-000000000102'::uuid, now() - interval '2 days', now() - interval '1 day', null, null, '00000000-0000-0000-0000-000000000006'::uuid, 'explanation'::public.content_type, 'ai'::public.tag, student_profile_id, expert_profile_id),
-  ('00000000-0000-0000-0000-000000000103'::uuid, now() - interval '5 days', now() - interval '4 days', now() - interval '3 days', null, '00000000-0000-0000-0000-000000000001'::uuid, 'how_to_guide'::public.content_type, 'math'::public.tag, student_profile_id, expert_profile_id),
-  ('00000000-0000-0000-0000-000000000104'::uuid, now() - interval '10 days', now() - interval '9 days', now() - interval '8 days', now() - interval '1 day', '00000000-0000-0000-0000-000000000002'::uuid, 'reference'::public.content_type, 'software'::public.tag, student_profile_id, expert_profile_id)
+  ('00000000-0000-0000-0000-000000000101'::uuid, now() - interval '3 days', null, null, null, '00000000-0000-0000-0000-000000000005'::uuid, 'tutorial'::public.content_type, 'software'::public.tag, jlelon_profile_id, expert_profile_id),
+  ('00000000-0000-0000-0000-000000000102'::uuid, now() - interval '2 days', now() - interval '1 day', null, null, '00000000-0000-0000-0000-000000000006'::uuid, 'explanation'::public.content_type, 'ai'::public.tag, jlelon_profile_id, expert_profile_id),
+  ('00000000-0000-0000-0000-000000000103'::uuid, now() - interval '5 days', now() - interval '4 days', now() - interval '3 days', null, '00000000-0000-0000-0000-000000000001'::uuid, 'how_to_guide'::public.content_type, 'math'::public.tag, jlelon_profile_id, expert_profile_id),
+  ('00000000-0000-0000-0000-000000000104'::uuid, now() - interval '10 days', now() - interval '9 days', now() - interval '8 days', now() - interval '1 day', '00000000-0000-0000-0000-000000000002'::uuid, 'reference'::public.content_type, 'software'::public.tag, jlelon_profile_id, expert_profile_id)
 ) as v(id, created_at, accepted_at, started_at, finished_at, source_id, content_type, tag, student_id, expert_id)
 where not exists (select 1 from public.requests where requests.id = v.id);
 

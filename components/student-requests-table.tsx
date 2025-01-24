@@ -4,22 +4,13 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { getRequestStatus, getStatusLabel } from "@/utils/request-status"
+import type { Request } from "@/types/request"
 
 interface Source {
   id: string
   title: string
   url: string
-}
-
-interface Request {
-  id: string
-  source: Source | null
-  accepted_at: string | null
-  started_at: string | null
-  finished_at: string | null
-  content_type: string
-  tag: string
-  created_at: string
 }
 
 interface StudentRequestsTableProps {
@@ -28,20 +19,13 @@ interface StudentRequestsTableProps {
 
 export default function StudentRequestsTable({ requests }: StudentRequestsTableProps) {
   const router = useRouter()
-  const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState<number | null>(null)
 
   const getTimeElapsed = (dateString: string) => {
     const created = new Date(dateString)
     const now = new Date()
     const diffDays = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24))
     return `${diffDays} days`
-  }
-
-  const getStatus = (request: Request): string => {
-    if (request.finished_at) return "finished"
-    if (request.started_at) return "in_progress"
-    if (request.accepted_at) return "accepted"
-    return "not_accepted"
   }
 
   const getStatusColor = (status: string) => {
@@ -52,14 +36,14 @@ export default function StudentRequestsTable({ requests }: StudentRequestsTableP
         return "bg-green-200"
       case "not_accepted":
         return "bg-black text-white"
-      case "accepted":
+      case "not_started":
         return "bg-blue-200"
       default:
         return "bg-gray-200"
     }
   }
 
-  const handleDelete = async (requestId: string, e: React.MouseEvent) => {
+  const handleDelete = async (requestId: number, e: React.MouseEvent) => {
     e.stopPropagation() // Prevent row click
     try {
       setIsDeleting(requestId)
@@ -96,7 +80,7 @@ export default function StudentRequestsTable({ requests }: StudentRequestsTableP
           </TableHeader>
           <TableBody>
             {requests.map((request) => {
-              const status = getStatus(request)
+              const status = getRequestStatus(request)
               return (
                 <TableRow
                   key={request.id}
@@ -121,7 +105,7 @@ export default function StudentRequestsTable({ requests }: StudentRequestsTableP
                   <TableCell>{getTimeElapsed(request.created_at)}</TableCell>
                   <TableCell>
                     <span className={`px-2 py-1 rounded ${getStatusColor(status)}`}>
-                      {status.replace("_", " ")}
+                      {getStatusLabel(status)}
                     </span>
                   </TableCell>
                   <TableCell>

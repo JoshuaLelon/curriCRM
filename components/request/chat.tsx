@@ -28,6 +28,7 @@ export default function Chat({ request, currentUser, onMessageSent }: ChatProps)
   const canSendMessages = canChat(request, currentUser)
   console.log('Chat debug:', {
     canSendMessages,
+    canViewChat: canViewChat(request, currentUser),
     request: {
       id: request.id,
       accepted_at: request.accepted_at,
