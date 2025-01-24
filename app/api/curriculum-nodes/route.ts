@@ -1,10 +1,38 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import type { Database } from '@/types/supabase'
 
 // GET /api/curriculum-nodes
 export async function GET(request: NextRequest) {
   try {
+    const cookieStore = cookies()
+    const supabase = createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set({ name, value, ...options })
+          },
+          remove(name: string, options: any) {
+            cookieStore.set({ name, value: '', ...options })
+          },
+        },
+      }
+    )
+
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    if (sessionError || !session) {
+      return NextResponse.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      )
+    }
+
     const searchParams = new URL(request.url).searchParams
     const curriculumId = searchParams.get('curriculumId')
 
@@ -15,13 +43,15 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = createRouteHandlerClient({ cookies })
-
     const { data, error } = await supabase
       .from('curriculum_nodes')
       .select(`
         *,
-        source:sources(*)
+        source:sources (
+          id,
+          title,
+          URL
+        )
       `)
       .eq('curriculum_id', curriculumId)
       .order('index_in_curriculum', { ascending: true })
@@ -47,41 +77,40 @@ export async function GET(request: NextRequest) {
 // POST /api/curriculum-nodes
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
-    const json = await request.json()
+    const cookieStore = cookies()
+    const supabase = createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set({ name, value, ...options })
+          },
+          remove(name: string, options: any) {
+            cookieStore.set({ name, value: '', ...options })
+          },
+        },
+      }
+    )
 
-    // Create source first if needed
-    let sourceId = json.source_id
-    if (!sourceId && json.source) {
-      const { data: source, error: sourceError } = await supabase
-        .from('sources')
-        .insert([{
-          title: json.source.title,
-          url: json.source.url,
-          created_by: json.source.created_by
-        }])
-        .select()
-        .single()
-
-      if (sourceError) throw sourceError
-      sourceId = source.id
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    if (sessionError || !session) {
+      return NextResponse.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      )
     }
 
-    // Create curriculum node
+    const json = await request.json()
+
     const { data, error } = await supabase
       .from('curriculum_nodes')
-      .insert([{
-        curriculum_id: json.curriculum_id,
-        source_id: sourceId,
-        start_time: json.start_time,
-        end_time: json.end_time,
-        level: json.level,
-        index_in_curriculum: json.index_in_curriculum
-      }])
-      .select(`
-        *,
-        source:sources(*)
-      `)
+      .insert([json])
+      .select()
+      .single()
 
     if (error) {
       console.error('Database error:', error)
@@ -91,7 +120,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({ data: data[0] })
+    return NextResponse.json({ data })
   } catch (error) {
     console.error('Error processing request:', error)
     return NextResponse.json(

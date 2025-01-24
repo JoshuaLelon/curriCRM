@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import type { Database } from '@/types/supabase'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,7 +38,7 @@ export async function GET(request: Request) {
     maxAge: 60 * 60 * 24 * 7 // 1 week
   }
 
-  const supabase = createServerClient(
+  const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -46,53 +47,18 @@ export async function GET(request: Request) {
           return cookieStore.get(name)?.value
         },
         set(name: string, value: string, options: any) {
-          try {
-            cookieStore.set({
-              name,
-              value,
-              ...options,
-              ...cookieOptions
-            })
-          } catch (error) {
-            console.error('Error setting cookie:', name, error)
-          }
+          cookieStore.set({ name, value, ...options })
         },
         remove(name: string, options: any) {
-          try {
-            cookieStore.set({
-              name,
-              value: '',
-              ...options,
-              ...cookieOptions,
-              maxAge: 0
-            })
-          } catch (error) {
-            console.error('Error removing cookie:', name, error)
-          }
+          cookieStore.set({ name, value: '', ...options })
         },
       },
-      auth: {
-        flowType: 'pkce',
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-        persistSession: true,
-      }
     }
   )
 
   try {
     // Exchange the code for a session using the code verifier
-    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
-    if (exchangeError) {
-      console.error('Session exchange error:', exchangeError)
-      // Log more details about the error
-      console.error('Exchange attempt details:', {
-        code,
-        codeVerifier: codeVerifier ? 'present' : 'missing',
-        error: exchangeError.message
-      })
-      return NextResponse.redirect(new URL('/login?error=auth_error', request.url))
-    }
+    await supabase.auth.exchangeCodeForSession(code)
 
     // Verify we have a session
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()

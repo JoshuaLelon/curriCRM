@@ -1,50 +1,60 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import type { Database } from '@/types/supabase'
 
 // GET /api/profiles
 export async function GET(request: NextRequest) {
-  const supabase = createRouteHandlerClient({ cookies })
-  const searchParams = request.nextUrl.searchParams
-  const userId = searchParams.get('userId')
-  const email = searchParams.get('email')
-
-  let query = supabase.from('profiles').select(`
-    *,
-    requests_as_student:requests!requests_student_id_fkey (
-      id,
-      created_at,
-      accepted_at,
-      started_at,
-      finished_at,
-      content_type,
-      tag
-    ),
-    requests_as_expert:requests!requests_expert_id_fkey (
-      id,
-      created_at,
-      accepted_at,
-      started_at,
-      finished_at,
-      content_type,
-      tag
+  try {
+    const cookieStore = cookies()
+    const supabase = createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set({ name, value, ...options })
+          },
+          remove(name: string, options: any) {
+            cookieStore.set({ name, value: '', ...options })
+          },
+        },
+      }
     )
-  `)
 
-  if (userId) {
-    query = query.eq('user_id', userId)
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    if (sessionError || !session) {
+      return NextResponse.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      )
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .single()
+
+    if (error) {
+      console.error('Database error:', error)
+      return NextResponse.json(
+        { error: 'Failed to fetch profile' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({ data })
+  } catch (error) {
+    console.error('Error processing request:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
   }
-  if (email) {
-    query = query.eq('email', email)
-  }
-
-  const { data, error } = await query
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 })
-  }
-
-  return NextResponse.json({ data })
 }
 
 // POST /api/profiles

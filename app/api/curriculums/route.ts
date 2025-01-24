@@ -1,38 +1,76 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import type { Database } from '@/types/supabase'
 
 // GET /api/curriculums
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = new URL(request.url).searchParams
-    const requestId = searchParams.get('requestId')
+    const cookieStore = cookies()
+    const supabase = createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set({ name, value, ...options })
+          },
+          remove(name: string, options: any) {
+            cookieStore.set({ name, value: '', ...options })
+          },
+        },
+      }
+    )
 
-    if (!requestId) {
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    if (sessionError || !session) {
       return NextResponse.json(
-        { error: 'Request ID is required' },
-        { status: 400 }
+        { error: 'Not authenticated' },
+        { status: 401 }
       )
     }
 
-    const supabase = createRouteHandlerClient({ cookies })
+    const searchParams = new URL(request.url).searchParams
+    const requestId = searchParams.get('requestId')
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('curriculums')
       .select(`
         *,
-        curriculum_nodes (
-          *,
-          source:sources(*)
+        request:requests (
+          id,
+          content_type,
+          tag
+        ),
+        nodes:curriculum_nodes (
+          id,
+          source_id,
+          start_time,
+          end_time,
+          level,
+          index_in_curriculum,
+          source:sources (
+            id,
+            title,
+            URL
+          )
         )
       `)
-      .eq('request_id', requestId)
-      .single()
+      .order('created_at', { ascending: false })
+
+    if (requestId) {
+      query = query.eq('request_id', requestId)
+    }
+
+    const { data, error } = await query
 
     if (error) {
       console.error('Database error:', error)
       return NextResponse.json(
-        { error: 'Failed to fetch curriculum' },
+        { error: 'Failed to fetch curriculums' },
         { status: 500 }
       )
     }
@@ -50,22 +88,40 @@ export async function GET(request: NextRequest) {
 // POST /api/curriculums
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const cookieStore = cookies()
+    const supabase = createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set({ name, value, ...options })
+          },
+          remove(name: string, options: any) {
+            cookieStore.set({ name, value: '', ...options })
+          },
+        },
+      }
+    )
+
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    if (sessionError || !session) {
+      return NextResponse.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      )
+    }
+
     const json = await request.json()
 
-    // Create curriculum
     const { data, error } = await supabase
       .from('curriculums')
-      .insert([{
-        request_id: json.request_id
-      }])
-      .select(`
-        *,
-        curriculum_nodes (
-          *,
-          source:sources(*)
-        )
-      `)
+      .insert([json])
+      .select()
+      .single()
 
     if (error) {
       console.error('Database error:', error)
@@ -75,7 +131,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({ data: data[0] })
+    return NextResponse.json({ data })
   } catch (error) {
     console.error('Error processing request:', error)
     return NextResponse.json(

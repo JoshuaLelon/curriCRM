@@ -1,67 +1,96 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import type { Database } from '@/types/supabase'
 
 // GET /api/requests
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = new URL(request.url).searchParams
-    const expertId = searchParams.get("expertId")
-    const studentId = searchParams.get("studentId")
+    const cookieStore = cookies()
+    const supabase = createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set({ name, value, ...options })
+          },
+          remove(name: string, options: any) {
+            cookieStore.set({ name, value: '', ...options })
+          },
+        },
+      }
+    )
 
-    console.log('GET /api/requests - Query params:', { expertId, studentId })
-
-    if (!expertId && !studentId) {
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    if (sessionError || !session) {
       return NextResponse.json(
-        { error: "Either expertId or studentId is required" },
-        { status: 400 }
+        { error: 'Not authenticated' },
+        { status: 401 }
       )
     }
 
-    const supabase = createRouteHandlerClient({ cookies })
+    // Get the user's profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .single()
 
-    // Get requests based on the provided ID
-    console.log('Building request query...')
-    const query = supabase
-      .from("requests")
-      .select(`
-        *,
-        source:sources(*),
-        student:profiles!requests_student_id_fkey(*),
-        expert:profiles!requests_expert_id_fkey(*)
-      `)
-      .order("created_at", { ascending: false })
-
-    if (expertId) {
-      console.log('Filtering by expert_id:', expertId)
-      query.eq("expert_id", expertId)
-    } else if (studentId) {
-      console.log('Filtering by student_id:', studentId)
-      query.eq("student_id", studentId)
+    if (profileError || !profile) {
+      return NextResponse.json(
+        { error: 'Profile not found' },
+        { status: 404 }
+      )
     }
 
-    const { data, error } = await query
+    // Get requests based on role
+    let query = supabase.from('requests').select(`
+      *,
+      source:sources (
+        id,
+        title,
+        URL
+      ),
+      student:profiles!requests_student_id_fkey (
+        id,
+        email,
+        specialty
+      ),
+      expert:profiles!requests_expert_id_fkey (
+        id,
+        email,
+        specialty
+      )
+    `)
+
+    if (profile.specialty) {
+      // Expert: show requests assigned to them or unassigned matching their specialty
+      query = query
+        .or(`expert_id.eq.${profile.id},and(expert_id.is.null,tag.eq.${profile.specialty})`)
+    } else {
+      // Student: only show their own requests
+      query = query.eq('student_id', profile.id)
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false })
 
     if (error) {
-      console.error("Database error:", error)
+      console.error('Database error:', error)
       return NextResponse.json(
-        { error: "Failed to fetch requests" },
+        { error: 'Failed to fetch requests' },
         { status: 500 }
       )
     }
 
-    console.log('Request data:', data)
-    console.log('Source data for each request:', data?.map(r => ({ 
-      request_id: r.id, 
-      source_id: r.source_id, 
-      source: r.source 
-    })))
-
     return NextResponse.json({ data })
   } catch (error) {
-    console.error("Error processing request:", error)
+    console.error('Error processing request:', error)
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
@@ -70,32 +99,72 @@ export async function GET(request: NextRequest) {
 // POST /api/requests
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const cookieStore = cookies()
+    const supabase = createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set({ name, value, ...options })
+          },
+          remove(name: string, options: any) {
+            cookieStore.set({ name, value: '', ...options })
+          },
+        },
+      }
+    )
+
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    if (sessionError || !session) {
+      return NextResponse.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      )
+    }
+
+    // Get the user's profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .single()
+
+    if (profileError || !profile) {
+      return NextResponse.json(
+        { error: 'Profile not found' },
+        { status: 404 }
+      )
+    }
+
     const json = await request.json()
 
+    // Create request
     const { data, error } = await supabase
-      .from("requests")
-      .insert([json])
-      .select(`
-        *,
-        source:sources(*),
-        student:profiles!requests_student_id_fkey(*),
-        expert:profiles!requests_expert_id_fkey(*)
-      `)
+      .from('requests')
+      .insert([{
+        ...json,
+        student_id: profile.id
+      }])
+      .select()
+      .single()
 
     if (error) {
-      console.error("Database error:", error)
+      console.error('Database error:', error)
       return NextResponse.json(
-        { error: "Failed to create request" },
+        { error: 'Failed to create request' },
         { status: 500 }
       )
     }
 
-    return NextResponse.json({ data: data[0] })
+    return NextResponse.json({ data })
   } catch (error) {
-    console.error("Error processing request:", error)
+    console.error('Error processing request:', error)
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
