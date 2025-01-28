@@ -8,53 +8,53 @@ import {
   buildCurriculumNode,
 } from './ai-nodes'
 
-// Create the workflow graph
-const workflow = new StateGraph(WorkflowAnnotation)
-  .addNode('gatherContext', gatherContextNode)
-  .addNode('plan', planNode)
-  .addNode('resourceSearch', resourceSearchNode)
-  .addNode('build', buildCurriculumNode)
-  // Edges define the order of steps
-  .addEdge('__start__', 'gatherContext')
-  .addEdge('gatherContext', 'plan')
-  .addEdge('plan', 'resourceSearch')
-  .addEdge('resourceSearch', 'build')
-  .addEdge('build', '__end__')
-
 export async function runAIWorkflow(requestId: string) {
-  const graphApp = workflow.compile()
-
-  // Run the graph from the start and track progress
-  let currentStep = 0
-  const stepMap: Record<string, number> = {
-    gatherContext: 1,
-    plan: 2,
-    resourceSearch: 3,
-    build: 4,
-  }
-
+  console.log(`[AI Runner] Starting workflow for request ${requestId}`)
+  
   try {
-    // Announce start
-    await announceProgress(requestId, 'gatherContext')
+    // 1) Assemble the state graph
+    console.log(`[AI Runner] Assembling state graph for request ${requestId}`)
+    const workflow = new StateGraph(WorkflowAnnotation)
+      .addNode('gatherContext', gatherContextNode)
+      .addNode('plan', planNode)
+      .addNode('resourceSearch', resourceSearchNode)
+      .addNode('build', buildCurriculumNode)
+      // Edges define the order of steps
+      .addEdge('__start__', 'gatherContext')
+      .addEdge('gatherContext', 'plan')
+      .addEdge('plan', 'resourceSearch')
+      .addEdge('resourceSearch', 'build')
+      .addEdge('build', '__end__')
 
-    // Run workflow
-    const result = await graphApp.invoke({ requestId })
-    console.log('Workflow result:', result)
+    console.log(`[AI Runner] Compiling graph for request ${requestId}`)
+    const graphApp = workflow.compile({ checkpointer: new MemorySaver() })
 
-    // Mark request as finished in the DB
+    // 2) Hook up an event listener to broadcast progress
+    console.log(`[AI Runner] Setting up progress listener for request ${requestId}`)
+    graphApp.events.on('nodeBegin', async (evt) => {
+      console.log(`[AI Runner] Node starting: ${evt.nodeName} for request ${requestId}`)
+      await announceProgress(requestId, evt.nodeName)
+    })
+
+    graphApp.events.on('nodeEnd', async (evt) => {
+      console.log(`[AI Runner] Node completed: ${evt.nodeName} for request ${requestId}`)
+    })
+
+    // 3) Run the graph from the start
+    console.log(`[AI Runner] Invoking workflow for request ${requestId}`)
+    const initialState = { requestId }
+    await graphApp.invoke(initialState)
+
+    // 4) Mark request as finished in the DB
+    console.log(`[AI Runner] Marking request ${requestId} as finished`)
     await supabase
       .from('requests')
       .update({ finished_at: new Date().toISOString() })
       .eq('id', requestId)
+    
+    console.log(`[AI Runner] Workflow completed successfully for request ${requestId}`)
   } catch (error) {
-    console.error('Workflow error:', error)
-    // Try to get more details about the error
-    if (error instanceof Error) {
-      console.error('Error stack:', error.stack)
-      if ('cause' in error) {
-        console.error('Error cause:', error.cause)
-      }
-    }
+    console.error(`[AI Runner] Error in workflow for request ${requestId}:`, error)
     throw error
   }
 }
@@ -69,12 +69,18 @@ async function announceProgress(requestId: string, nodeName: string) {
     build: 4,
   }
 
-  await supabase.channel(`request_${requestId}_updates`).send({
-    type: 'broadcast',
-    event: 'progress',
-    payload: {
-      step: stepMap[nodeName] ?? 0,
-      totalSteps: 4,
-    },
-  })
+  const step = stepMap[nodeName] ?? 0
+  console.log(`[AI Runner] Broadcasting progress for request ${requestId}: Step ${step}/4 (${nodeName})`)
+  
+  try {
+    await supabase.channel(`request_${requestId}_updates`).send({
+      type: 'progress',
+      payload: {
+        step,
+        totalSteps: 4,
+      },
+    })
+  } catch (error) {
+    console.error(`[AI Runner] Error broadcasting progress for request ${requestId}:`, error)
+  }
 } 

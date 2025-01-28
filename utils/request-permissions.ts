@@ -30,6 +30,12 @@ export function canEditCurriculum(request: Request, user: User): boolean {
 }
 
 export function canAssignExpert(request: Request, user: User): boolean {
+  console.log('[Permissions] canAssignExpert check:', {
+    userRole: user.role,
+    requestStarted: !!request.started_at,
+    request,
+    user
+  })
   if (user.role !== "admin") return false
   return !request.started_at // Can assign in not_accepted or not_started states
 }

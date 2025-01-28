@@ -26,21 +26,29 @@ export default function RequestProgressView({ request }: RequestProgressViewProp
   const [progress, setProgress] = useState<ProgressUpdate>({ step: 0, totalSteps: 4 })
 
   useEffect(() => {
-    // Subscribe to progress updates
+    console.log(`[Progress View] Setting up realtime subscription for request ${request.id}`)
+    
     const channel = supabase.channel(`request_${request.id}_updates`)
     
     channel
-      .on('broadcast', { event: 'progress' }, ({ payload }) => {
-        setProgress(payload as ProgressUpdate)
+      .on('broadcast', { event: 'progress' }, (payload) => {
+        console.log(`[Progress View] Received progress update for request ${request.id}:`, payload)
+        const { step, totalSteps } = payload.payload
+        setProgress({ step, totalSteps })
       })
-      .subscribe()
+      .subscribe((status) => {
+        console.log(`[Progress View] Subscription status for request ${request.id}:`, status)
+      })
 
     return () => {
+      console.log(`[Progress View] Cleaning up subscription for request ${request.id}`)
       channel.unsubscribe()
     }
   }, [request.id, supabase])
 
   const progressPercentage = (progress.step / progress.totalSteps) * 100
+
+  console.log(`[Progress View] Rendering progress for request ${request.id}: Step ${progress.step}/${progress.totalSteps}`)
 
   return (
     <div className="space-y-4 p-4 bg-[#E6F4FF] rounded-lg">

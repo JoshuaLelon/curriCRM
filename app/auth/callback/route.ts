@@ -33,24 +33,37 @@ export async function GET(request: Request) {
   const cookieOptions = {
     path: '/',
     sameSite: 'lax' as const,
-    // httpOnly: true, // Removed to allow client-side access
-    secure: process.env.NODE_ENV === 'production',
+    secure: false, // Allow non-HTTPS in development
     maxAge: 60 * 60 * 24 * 7 // 1 week
   }
 
+  console.log('Creating Supabase client with URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+  
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         get(name: string) {
-          return cookieStore.get(name)?.value
+          const cookie = cookieStore.get(name)
+          console.log(`[Cookie Get] ${name}:`, cookie?.value || 'not found')
+          return cookie?.value
         },
         set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options })
+          console.log(`[Cookie Set] Setting ${name}`)
+          try {
+            cookieStore.set({ name, value, ...cookieOptions })
+          } catch (error) {
+            console.error(`[Cookie Set] Error setting ${name}:`, error)
+          }
         },
         remove(name: string, options: any) {
-          cookieStore.set({ name, value: '', ...options })
+          console.log(`[Cookie Remove] Removing ${name}`)
+          try {
+            cookieStore.set({ name, value: '', ...cookieOptions })
+          } catch (error) {
+            console.error(`[Cookie Remove] Error removing ${name}:`, error)
+          }
         },
       },
       global: {

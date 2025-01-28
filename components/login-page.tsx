@@ -8,9 +8,10 @@ import { useSupabase } from '@/components/providers/supabase-provider'
 
 interface LoginPageProps {
   userType: string
+  alternateLogins?: any[]
 }
 
-export default function LoginPage({ userType }: LoginPageProps) {
+export default function LoginPage({ userType, alternateLogins = [] }: LoginPageProps) {
   const { isLoading: isSessionLoading, hasSession, supabase } = useSupabase()
   const [email, setEmail] = useState("")
   const router = useRouter()
@@ -19,7 +20,9 @@ export default function LoginPage({ userType }: LoginPageProps) {
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
+    console.log('[Login] Session state:', { isSessionLoading, hasSession })
     if (!isSessionLoading && hasSession) {
+      console.log('[Login] Has session, redirecting to /home')
       router.replace('/home')
       return
     }
@@ -30,26 +33,29 @@ export default function LoginPage({ userType }: LoginPageProps) {
     setError(null)
     setIsLoading(true)
     
-    console.log('Starting magic link sign in for:', email)
+    console.log('[Login] Starting magic link sign in for:', email)
     
     try {
+      const redirectTo = `${window.location.origin}/auth/callback`
+      console.log('[Login] Redirect URL:', redirectTo)
+      
       const { data, error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${location.origin}/auth/callback`,
+          emailRedirectTo: redirectTo,
           data: {
             userType
           }
         }
       })
 
-      console.log('Sign in attempt result:', {
+      console.log('[Login] Sign in attempt result:', {
         error: error || 'none',
         data
       })
 
       if (error) {
-        console.error('Auth error:', error)
+        console.error('[Login] Auth error:', error)
         setError(error.message)
         return
       }
@@ -57,7 +63,7 @@ export default function LoginPage({ userType }: LoginPageProps) {
       setShowNotification(true)
       router.push('/login?check_inbox=1')
     } catch (err) {
-      console.error('Unexpected error:', err)
+      console.error('[Login] Unexpected error:', err)
       setError('An unexpected error occurred')
     } finally {
       setIsLoading(false)

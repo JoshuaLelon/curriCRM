@@ -214,19 +214,94 @@ export default function RequestPage({ params }: { params: { id: string } }) {
     if (!request) return
 
     try {
+      console.log('[Request Page] Starting expert assignment')
+      console.log('[Request Page] Expert ID:', expertId)
+      console.log('[Request Page] Current user:', currentUser)
+      console.log('[Request Page] Request:', request)
+      
       const updates = {
         expert_id: expertId || null,
         accepted_at: expertId ? new Date().toISOString() : null
       }
 
-      const { error: updateError } = await supabase
+      console.log('[Request Page] Updating request with:', updates)
+      
+      const { data: updateData, error: updateError } = await supabase
         .from("requests")
         .update(updates)
         .eq("id", request.id)
+        .select()
       
-      if (updateError) throw updateError
+      if (updateError) {
+        console.error('[Request Page] Error updating request:', updateError)
+        throw updateError
+      }
+      
+      console.log('[Request Page] Update successful:', updateData)
+
+      // If self-assigning as admin, trigger AI workflow
+      const isSelfAssigningAdmin = expertId && currentUser?.role === 'admin' && expertId === currentUser.id
+      console.log('[Request Page] Checking AI workflow trigger:', {
+        expertId,
+        currentUserRole: currentUser?.role,
+        currentUserId: currentUser?.id,
+        isSelfAssigningAdmin,
+        requestId: request.id
+      })
+
+      if (isSelfAssigningAdmin) {
+        console.log('[Request Page] Self-assigned as admin, triggering AI workflow')
+        
+        try {
+          const apiUrl = `/api/ai/requests/${request.id}`
+          console.log('[Request Page] Making API request to:', apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          })
+          
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          })
+          
+          console.log('[Request Page] API response:', {
+            status: response.status,
+            statusText: response.statusText,
+            headers: Object.fromEntries(response.headers.entries())
+          })
+          
+          const responseText = await response.text()
+          console.log('[Request Page] API response text:', responseText)
+          
+          if (!response.ok) {
+            console.error('[Request Page] API error:', responseText)
+            throw new Error(responseText || 'Failed to start AI workflow')
+          }
+
+          console.log('[Request Page] AI workflow triggered successfully')
+        } catch (error) {
+          console.error('[Request Page] Error triggering AI workflow:', error)
+          if (error instanceof Error) {
+            console.error('[Request Page] Error details:', {
+              name: error.name,
+              message: error.message,
+              stack: error.stack
+            })
+          }
+          alert('Failed to start AI workflow. Please try again.')
+          return
+        }
+      }
+
+      console.log('[Request Page] Refreshing request data')
+      await fetchRequestData()
+      console.log('[Request Page] Request data refreshed')
     } catch (err) {
-      console.error("Error assigning expert:", err)
+      console.error("[Request Page] Error assigning expert:", err)
       alert("Failed to assign expert")
     }
   }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -42,6 +42,25 @@ export default function RequestDetails({
   const status = getRequestStatus(request)
   const canEdit = canEditRequestDetails(request, currentUser)
   const canAssign = canAssignExpert(request, currentUser)
+
+  useEffect(() => {
+    if (canAssign && experts) {
+      console.log('[Request Details] Expert assignment section state:', {
+        canAssign,
+        hasExperts: !!experts,
+        expertsLength: experts.length,
+        currentUser
+      })
+    }
+  }, [canAssign, experts, currentUser])
+
+  console.log('[Request Details] Render state:', {
+    status,
+    canEdit,
+    canAssign,
+    currentUser,
+    experts: experts?.length
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -193,16 +212,26 @@ export default function RequestDetails({
           <div className="flex gap-2">
             <Select
               value={request.expert_id?.toString() || ""}
-              onValueChange={(value) => onExpertAssign?.(value)}
+              onValueChange={(value) => {
+                console.log('[Request Details] Dropdown changed:', {
+                  oldValue: request.expert_id?.toString() || "",
+                  newValue: value,
+                  currentUser,
+                  onExpertAssign: !!onExpertAssign
+                })
+                console.log('[Request Details] Expert selected:', value)
+                console.log('[Request Details] Current user:', currentUser)
+                onExpertAssign?.(value)
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select an expert" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">None</SelectItem>
-                <SelectItem value={currentUser.id.toString()}>AI (Assign to Self)</SelectItem>
+                <SelectItem value={currentUser.id}>AI (Assign to Self)</SelectItem>
                 {experts.map((expert) => (
-                  <SelectItem key={expert.id} value={expert.id.toString()}>
+                  <SelectItem key={expert.id} value={expert.id}>
                     {expert.email}
                   </SelectItem>
                 ))}

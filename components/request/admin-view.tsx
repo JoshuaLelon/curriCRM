@@ -5,6 +5,7 @@ import { getRequestStatus } from "@/utils/request-status"
 import RequestDetails from "./request-details"
 import Chat from "./chat"
 import CurriculumViewTable from "../curriculum-view-table"
+import RequestProgressView from "./request-progress-view"
 
 interface AdminViewProps {
   request: Request
@@ -24,6 +25,15 @@ export default function AdminView({
   onExpertAssign,
 }: AdminViewProps) {
   const status = getRequestStatus(request)
+  const isAIProcessing = request.accepted_at && 
+    !request.finished_at && 
+    request.expert_id && 
+    request.expert_id.toString() === currentUser.id
+  
+  console.log('[Admin View] Status:', status)
+  console.log('[Admin View] Expert ID:', request.expert_id)
+  console.log('[Admin View] Current User ID:', currentUser.id)
+  console.log('[Admin View] Is AI Processing:', isAIProcessing)
   
   return (
     <div className="space-y-4">
@@ -34,6 +44,11 @@ export default function AdminView({
         experts={experts}
         onExpertAssign={onExpertAssign}
       />
+
+      {/* Show progress view when AI is processing */}
+      {isAIProcessing && (
+        <RequestProgressView request={request} />
+      )}
 
       {/* Show chat history for all states except not_accepted */}
       {status !== "not_accepted" && (
