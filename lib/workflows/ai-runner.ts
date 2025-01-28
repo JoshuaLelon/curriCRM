@@ -1,4 +1,4 @@
-import { StateGraph, MemorySaver } from '@langchain/langgraph'
+import { StateGraph } from '@langchain/langgraph'
 import { supabase } from '@/lib/supabase'
 import { WorkflowAnnotation } from './types'
 import {
@@ -15,10 +15,27 @@ export async function runAIWorkflow(requestId: string) {
     // 1) Assemble the state graph
     console.log(`[AI Runner] Assembling state graph for request ${requestId}`)
     const workflow = new StateGraph(WorkflowAnnotation)
-      .addNode('gatherContext', gatherContextNode)
-      .addNode('plan', planNode)
-      .addNode('resourceSearch', resourceSearchNode)
-      .addNode('build', buildCurriculumNode)
+      // Add nodes with progress tracking wrappers
+      .addNode('gatherContext', async (state) => {
+        await announceProgress(requestId, 'gatherContext')
+        const result = await gatherContextNode(state)
+        return result
+      })
+      .addNode('plan', async (state) => {
+        await announceProgress(requestId, 'plan')
+        const result = await planNode(state)
+        return result
+      })
+      .addNode('resourceSearch', async (state) => {
+        await announceProgress(requestId, 'resourceSearch')
+        const result = await resourceSearchNode(state)
+        return result
+      })
+      .addNode('build', async (state) => {
+        await announceProgress(requestId, 'build')
+        const result = await buildCurriculumNode(state)
+        return result
+      })
       // Edges define the order of steps
       .addEdge('__start__', 'gatherContext')
       .addEdge('gatherContext', 'plan')
@@ -27,25 +44,14 @@ export async function runAIWorkflow(requestId: string) {
       .addEdge('build', '__end__')
 
     console.log(`[AI Runner] Compiling graph for request ${requestId}`)
-    const graphApp = workflow.compile({ checkpointer: new MemorySaver() })
+    const graphApp = workflow.compile()
 
-    // 2) Hook up an event listener to broadcast progress
-    console.log(`[AI Runner] Setting up progress listener for request ${requestId}`)
-    graphApp.events.on('nodeBegin', async (evt) => {
-      console.log(`[AI Runner] Node starting: ${evt.nodeName} for request ${requestId}`)
-      await announceProgress(requestId, evt.nodeName)
-    })
-
-    graphApp.events.on('nodeEnd', async (evt) => {
-      console.log(`[AI Runner] Node completed: ${evt.nodeName} for request ${requestId}`)
-    })
-
-    // 3) Run the graph from the start
+    // Run the graph from the start
     console.log(`[AI Runner] Invoking workflow for request ${requestId}`)
     const initialState = { requestId }
     await graphApp.invoke(initialState)
 
-    // 4) Mark request as finished in the DB
+    // Mark request as finished in the DB
     console.log(`[AI Runner] Marking request ${requestId} as finished`)
     await supabase
       .from('requests')
@@ -74,7 +80,8 @@ async function announceProgress(requestId: string, nodeName: string) {
   
   try {
     await supabase.channel(`request_${requestId}_updates`).send({
-      type: 'progress',
+      type: 'broadcast',
+      event: 'progress',
       payload: {
         step,
         totalSteps: 4,

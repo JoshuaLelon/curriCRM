@@ -16,6 +16,13 @@ All home-related components are in `components/home/`:
 - `student-home.tsx`: Shows student's requests and new request button
 - `expert-home.tsx`: Shows expert's assigned requests
 - `admin-home.tsx`: Shows all requests with expert assignment
+  - Expert assignment uses the expert's `user_id` from the profiles table
+  - Dropdown values should contain the expert's UUID from `user_id`
+  - Renders `RequestsTable` component with `onExpertChange` callback
+  - Expert assignment flow:
+    1. Admin selects expert from dropdown (value is expert's `user_id`)
+    2. `handleExpertChange` finds expert by `user_id` and uses their `id` for assignment
+    3. Request is updated with expert's numeric `id` in database
 
 ## Navigation
 

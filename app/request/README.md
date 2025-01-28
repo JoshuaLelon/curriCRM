@@ -61,5 +61,7 @@ Request states:
 
 ### Admin
 - Can assign/reassign experts in `not_accepted` and `not_started` states
+  - Expert assignment uses the expert's `user_id` from the profiles table
+  - The `expert_id` stored in requests table is the expert's numeric `id` from profiles
 - View-only access to chat history and curriculum
 - Cannot participate in chat 

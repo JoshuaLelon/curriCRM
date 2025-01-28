@@ -25,6 +25,8 @@ export default function RequestsTable({
   isAdmin = false,
   currentUser
 }: RequestsTableProps) {
+  console.log('RequestsTable props:', { isAdmin, currentUser, experts })
+
   const getTimeElapsed = (dateString: string) => {
     const created = new Date(dateString)
     const now = new Date()
@@ -118,13 +120,25 @@ export default function RequestsTable({
                       {onExpertChange && experts && (
                         <select
                           className="border rounded px-2 py-1"
-                          value={request.expert_id?.toString() || ""}
-                          onChange={(e) => onExpertChange(request.id, e.target.value)}
+                          value={request.expert?.user_id || experts?.find(e => e.id === request.expert_id)?.user_id || ""}
+                          onChange={(e) => {
+                            console.log('Select onChange:', { 
+                              requestId: request.id, 
+                              newValue: e.target.value,
+                              currentUser,
+                              experts 
+                            })
+                            onExpertChange(request.id, e.target.value)
+                          }}
                         >
                           <option value="">Select Expert</option>
-                          {isAdmin && <option value={currentUser?.id}>AI (Assign to Self)</option>}
+                          {isAdmin && (
+                            <option value={currentUser?.user_id || ""}>
+                              AI (Assign to Self)
+                            </option>
+                          )}
                           {experts.map((expert) => (
-                            <option key={expert.id} value={expert.id}>
+                            <option key={expert.id} value={expert.user_id || ""}>
                               {expert.email}
                             </option>
                           ))}

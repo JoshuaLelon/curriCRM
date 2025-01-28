@@ -149,7 +149,7 @@ export default function HomePage() {
           const { data: expertsData, error: expertsError } = await supabase
             .from("profiles")
             .select("*")
-            .not("specialty", "is", null)
+            .or(`specialty.not.is.null,email.eq.${profile.email}`)
           if (expertsError) throw expertsError
           console.log('Found experts:', expertsData)
           setExperts(expertsData)
