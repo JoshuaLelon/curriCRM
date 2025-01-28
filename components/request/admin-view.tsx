@@ -1,16 +1,17 @@
 "use client"
 
-import type { Request } from "@/types/request"
+import { Request } from "@/types/request"
 import { getRequestStatus } from "@/utils/request-status"
 import RequestDetails from "./request-details"
 import Chat from "./chat"
-import CurriculumViewTable from "./curriculum-view-table"
+import CurriculumViewTable from "../curriculum-view-table"
 
 interface AdminViewProps {
   request: Request
   currentUser: {
     id: string
     role: "admin"
+    email: string
   }
   experts: Array<{ id: string; email: string }>
   onExpertAssign: (expertId: string) => void
@@ -23,10 +24,10 @@ export default function AdminView({
   onExpertAssign,
 }: AdminViewProps) {
   const status = getRequestStatus(request)
-
+  
   return (
-    <div className="space-y-6">
-      {/* Always show request details with expert assignment UI in not_accepted/not_started states */}
+    <div className="space-y-4">
+      {/* Show request details with expert assignment UI in not_accepted/not_started states */}
       <RequestDetails
         request={request}
         currentUser={currentUser}

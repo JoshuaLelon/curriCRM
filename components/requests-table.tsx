@@ -12,6 +12,7 @@ interface RequestsTableProps {
   onDeleteRequest?: (requestId: string) => void
   showPositionInLine?: boolean
   isAdmin?: boolean
+  currentUser?: Profile
 }
 
 export default function RequestsTable({
@@ -21,7 +22,8 @@ export default function RequestsTable({
   onExpertChange,
   onDeleteRequest,
   showPositionInLine = false,
-  isAdmin = false
+  isAdmin = false,
+  currentUser
 }: RequestsTableProps) {
   const getTimeElapsed = (dateString: string) => {
     const created = new Date(dateString)
@@ -120,6 +122,7 @@ export default function RequestsTable({
                           onChange={(e) => onExpertChange(request.id, e.target.value)}
                         >
                           <option value="">Select Expert</option>
+                          {isAdmin && <option value={currentUser?.id}>AI (Assign to Self)</option>}
                           {experts.map((expert) => (
                             <option key={expert.id} value={expert.id}>
                               {expert.email}

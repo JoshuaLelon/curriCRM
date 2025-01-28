@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { useSupabase } from "@/components/providers/supabase-provider"
-import type { Request, Source } from "@/types/request"
+import type { Request, Source, Tag, ContentType } from "@/types/request"
 import { canEditRequestDetails, canAssignExpert } from "@/utils/request-permissions"
 import { getRequestStatus, getStatusLabel, getTimeElapsed } from "@/utils/request-status"
 
@@ -21,8 +21,8 @@ interface RequestDetailsProps {
   onExpertAssign?: (expertId: string) => void
 }
 
-const availableTypes = ["tutorial", "explanation", "how_to_guide", "reference"]
-const availableTags = ["math", "software", "ai"]
+const availableTypes: ContentType[] = ["tutorial", "explanation", "how_to_guide", "reference"]
+const availableTags: Tag[] = ["math", "software", "ai"]
 
 export default function RequestDetails({
   request,
@@ -35,8 +35,8 @@ export default function RequestDetails({
   const [formData, setFormData] = useState({
     sourceName: request.source?.title || "",
     sourceUrl: request.source?.url || "",
-    tag: request.tag,
-    type: request.content_type,
+    tag: request.tag as Tag,
+    type: request.content_type as ContentType,
   })
 
   const status = getRequestStatus(request)
@@ -85,7 +85,7 @@ export default function RequestDetails({
 
         <div>
           <Label htmlFor="tag">Tag</Label>
-          <Select value={formData.tag} onValueChange={(value) => setFormData((prev) => ({ ...prev, tag: value }))}>
+          <Select value={formData.tag} onValueChange={(value) => setFormData((prev) => ({ ...prev, tag: value as Tag }))}>
             <SelectTrigger>
               <SelectValue placeholder="Select a tag" />
             </SelectTrigger>
@@ -101,7 +101,7 @@ export default function RequestDetails({
 
         <div>
           <Label htmlFor="type">Request Type</Label>
-          <Select value={formData.type} onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value }))}>
+          <Select value={formData.type} onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value as ContentType }))}>
             <SelectTrigger>
               <SelectValue placeholder="Select a type" />
             </SelectTrigger>
@@ -192,7 +192,7 @@ export default function RequestDetails({
           <Label htmlFor="expert">Assign Expert</Label>
           <div className="flex gap-2">
             <Select
-              value={request.expert_id || ""}
+              value={request.expert_id?.toString() || ""}
               onValueChange={(value) => onExpertAssign?.(value)}
             >
               <SelectTrigger>
@@ -200,8 +200,9 @@ export default function RequestDetails({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">None</SelectItem>
+                <SelectItem value={currentUser.id.toString()}>AI (Assign to Self)</SelectItem>
                 {experts.map((expert) => (
-                  <SelectItem key={expert.id} value={expert.id}>
+                  <SelectItem key={expert.id} value={expert.id.toString()}>
                     {expert.email}
                   </SelectItem>
                 ))}

@@ -10,8 +10,14 @@ This directory contains all database migrations for the CurriCRM application.
 - `20250123000003_create_policies.sql`: Database policies
 - `20250123000004_create_seed_data.sql`: Initial seed data
 - `20250124000005_fix_null_email_change_column.sql`: Fix for null email_change column in auth.users table
+- `20250124000006_add_ai_profile.sql`: Add AI expert profile with ID 9999
 
 ## Recent Changes
+
+### Add AI Expert Profile (20250124000006)
+- Added special AI user in `auth.users` with email 'ai@gauntletai.com'
+- Created AI profile in `public.profiles` with ID 9999
+- AI profile will be used for automated curriculum generation
 
 ### Fix for Email Change Column (20250124000005)
 - Modified `auth.users` table to handle null values in `email_change` column

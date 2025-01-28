@@ -8,11 +8,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "seed": "tsx supabase/reset-db.ts"
+    "seed": "tsx supabase/reset-db.ts",
+    "test-ai": "tsx scripts/test-ai-workflow.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^3.9.1",
+    "@langchain/core": "^0.3.36",
+    "@langchain/langgraph": "^0.2.41",
+    "@langchain/openai": "^0.4.2",
     "@radix-ui/react-accordion": "^1.2.2",
     "@radix-ui/react-alert-dialog": "^1.1.4",
     "@radix-ui/react-aspect-ratio": "^1.1.1",

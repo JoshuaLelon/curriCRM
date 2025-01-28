@@ -100,9 +100,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = cookies()
+    const authHeader = request.headers.get('Authorization')
+    const isServiceRole = authHeader?.startsWith('Bearer') && authHeader.split(' ')[1] === process.env.SUPABASE_SERVICE_ROLE_KEY
+
     const supabase = createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      isServiceRole ? process.env.SUPABASE_SERVICE_ROLE_KEY! : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
           get(name: string) {
@@ -118,26 +121,46 @@ export async function POST(request: NextRequest) {
       }
     )
 
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    if (sessionError || !session) {
-      return NextResponse.json(
-        { error: 'Not authenticated' },
-        { status: 401 }
-      )
-    }
+    let profile
+    if (!isServiceRole) {
+      // For normal users, check session and get profile
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session) {
+        return NextResponse.json(
+          { error: 'Not authenticated' },
+          { status: 401 }
+        )
+      }
 
-    // Get the user's profile
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .single()
+      // Get the user's profile
+      const { data: userProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .single()
 
-    if (profileError || !profile) {
-      return NextResponse.json(
-        { error: 'Profile not found' },
-        { status: 404 }
-      )
+      if (profileError || !userProfile) {
+        return NextResponse.json(
+          { error: 'Profile not found' },
+          { status: 404 }
+        )
+      }
+      profile = userProfile
+    } else {
+      // For service role, use the AI profile
+      const { data: aiProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', 9999)
+        .single()
+
+      if (profileError || !aiProfile) {
+        return NextResponse.json(
+          { error: 'AI profile not found' },
+          { status: 404 }
+        )
+      }
+      profile = aiProfile
     }
 
     const json = await request.json()
@@ -176,7 +199,24 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const cookieStore = cookies()
+    const supabase = createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set({ name, value, ...options })
+          },
+          remove(name: string, options: any) {
+            cookieStore.set({ name, value: '', ...options })
+          },
+        },
+      }
+    )
     const json = await request.json()
     const { id, ...updateData } = json
 
@@ -221,7 +261,24 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createRouteHandlerClient({ cookies })
+  const cookieStore = cookies()
+  const supabase = createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+        set(name: string, value: string, options: any) {
+          cookieStore.set({ name, value, ...options })
+        },
+        remove(name: string, options: any) {
+          cookieStore.set({ name, value: '', ...options })
+        },
+      },
+    }
+  )
 
   const { error } = await supabase
     .from('requests')

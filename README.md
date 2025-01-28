@@ -1,6 +1,92 @@
 # CurriCRM
 
-A curriculum management system that connects students with experts.
+A curriculum management system that helps experts create and manage learning paths.
+
+## Features
+
+### Request Management
+- Students can submit requests for learning paths
+- Experts can view and accept requests
+- Real-time updates on request status
+
+### AI-Powered Curriculum Generation
+- Admins can assign requests to be handled by AI
+- GPT-4 powered learning plan generation
+- Automatic resource discovery and curriculum structuring
+- Real-time progress tracking via Supabase Realtime
+
+### Curriculum Management
+- Structured learning paths with dependencies
+- Resource management and organization
+- Progress tracking for students
+
+## Tech Stack
+
+- Next.js 14 (App Router)
+- TypeScript
+- Supabase (Auth, Database, Realtime)
+- LangChain.js & LangGraph
+- Shadcn UI & Tailwind CSS
+
+## Getting Started
+
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Set up environment variables:
+   ```bash
+   cp .env.example .env.local
+   ```
+   Then add your:
+   - Supabase credentials
+   - OpenAI API key
+   - Other service keys
+
+4. Run database migrations:
+   ```bash
+   npm run seed
+   ```
+
+5. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+## Project Structure
+
+```
+.
+├── app/                    # Next.js app router pages
+│   ├── api/               # API routes
+│   │   └── ai/           # AI workflow endpoints
+│   └── ...
+├── components/            # React components
+├── lib/                   # Shared utilities
+│   └── workflows/        # AI workflow implementation
+├── public/               # Static assets
+├── styles/               # Global styles
+├── supabase/             # Database migrations
+└── types/                # TypeScript types
+```
+
+## Documentation
+
+- [API Documentation](app/api/README.md)
+- [AI Workflow](lib/workflows/README.md)
+- [Database Schema](supabase/README.md)
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## License
+
+MIT
 
 ## Authentication
 

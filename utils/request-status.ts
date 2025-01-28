@@ -1,4 +1,4 @@
-import type { Request } from "@/types"
+import type { Request } from "@/types/request"
 
 export type RequestStatus = "not_accepted" | "not_started" | "in_progress" | "finished"
 
@@ -7,7 +7,7 @@ export function getRequestStatus(request: Request): RequestStatus {
   if (!request.expert_id) return "not_accepted"
   
   // Check for curriculum nodes
-  const hasCurriculumNodes = request.curriculum?.curriculum_nodes?.length > 0
+  const hasCurriculumNodes = (request.curriculum?.curriculum_nodes?.length ?? 0) > 0
   if (hasCurriculumNodes) return "in_progress"
   
   return "not_started"

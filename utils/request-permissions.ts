@@ -15,9 +15,16 @@ export function canDeleteRequest(request: Request, user: User): boolean {
   return !request.accepted_at // Can only delete in not_accepted state
 }
 
+export function isAIHandledRequest(request: Request, user: User): boolean {
+  if (user.role !== "admin") return false
+  const userId = typeof user.id === 'string' ? parseInt(user.id) : user.id
+  return request.expert_id === userId
+}
+
 export function canEditCurriculum(request: Request, user: User): boolean {
-  if (user.role !== "expert") return false
-  if (request.expert_id !== user.id) return false
+  if (user.role !== "expert" && !isAIHandledRequest(request, user)) return false
+  const userId = typeof user.id === 'string' ? parseInt(user.id) : user.id
+  if (request.expert_id !== userId) return false
   if (request.finished_at) return false
   return !!request.accepted_at // Can edit in not_started or in_progress states
 }
