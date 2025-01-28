@@ -12,6 +12,12 @@ export async function runAIWorkflow(requestId: string) {
   console.log(`[AI Runner] Starting workflow for request ${requestId}`)
   
   try {
+    // Set started_at when workflow begins
+    await supabase
+      .from('requests')
+      .update({ started_at: new Date().toISOString() })
+      .eq('id', requestId)
+
     // 1) Assemble the state graph
     console.log(`[AI Runner] Assembling state graph for request ${requestId}`)
     const workflow = new StateGraph(WorkflowAnnotation)

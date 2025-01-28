@@ -25,12 +25,14 @@ const availableTypes: ContentType[] = ["tutorial", "explanation", "how_to_guide"
 const availableTags: Tag[] = ["math", "software", "ai"]
 
 export default function RequestDetails({
-  request,
+  request: initialRequest,
   currentUser,
   experts,
   onUpdate,
   onExpertAssign
 }: RequestDetailsProps) {
+  const { supabase } = useSupabase()
+  const [request, setRequest] = useState(initialRequest)
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState({
     sourceName: request.source?.title || "",
@@ -42,6 +44,68 @@ export default function RequestDetails({
   const status = getRequestStatus(request)
   const canEdit = canEditRequestDetails(request, currentUser)
   const canAssign = canAssignExpert(request, currentUser)
+
+  // Set up real-time subscription
+  useEffect(() => {
+    console.log(`[Request Details] Setting up realtime subscription for request ${request.id}`)
+    
+    const channel = supabase
+      .channel(`request_${request.id}_details`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'requests',
+          filter: `id=eq.${request.id}`,
+        },
+        async (payload) => {
+          console.log(`[Request Details] Received update for request ${request.id}:`, payload)
+          
+          // Fetch the complete request data with all relations
+          const { data, error } = await supabase
+            .from('requests')
+            .select(`
+              *,
+              source:sources(*),
+              student:profiles!requests_student_id_fkey(
+                id,
+                email,
+                specialty,
+                is_admin
+              ),
+              expert:profiles!requests_expert_id_fkey(
+                id,
+                user_id,
+                email,
+                specialty,
+                is_admin
+              ),
+              curriculum:curriculums!curriculums_request_id_fkey (
+                *,
+                curriculum_nodes (*)
+              )
+            `)
+            .eq('id', request.id)
+            .single()
+
+          if (error) {
+            console.error(`[Request Details] Error fetching updated request:`, error)
+            return
+          }
+
+          setRequest(data)
+        }
+      )
+      .subscribe((status) => {
+        console.log(`[Request Details] Subscription status for request ${request.id}:`, status)
+      })
+
+    return () => {
+      console.log(`[Request Details] Cleaning up subscription for request ${request.id}`)
+      supabase.removeChannel(channel)
+    }
+  }, [request.id, supabase])
 
   useEffect(() => {
     if (canAssign && experts) {
@@ -211,25 +275,48 @@ export default function RequestDetails({
           <Label htmlFor="expert">Assign Expert</Label>
           <div className="flex gap-2">
             <Select
-              value={request.expert_id?.toString() || ""}
+              value={(() => {
+                // If expert is the current admin (AI case), return currentUser.id
+                if (request.expert?.id?.toString() === currentUser.id) {
+                  return currentUser.id
+                }
+                // If there's an expert assigned, return their id
+                if (request.expert_id) {
+                  return request.expert_id.toString()
+                }
+                // Otherwise return "none"
+                return "none"
+              })()}
               onValueChange={(value) => {
                 console.log('[Request Details] Dropdown changed:', {
-                  oldValue: request.expert_id?.toString() || "",
+                  oldValue: request.expert_id?.toString() || "none",
                   newValue: value,
                   currentUser,
                   onExpertAssign: !!onExpertAssign
                 })
                 console.log('[Request Details] Expert selected:', value)
                 console.log('[Request Details] Current user:', currentUser)
-                onExpertAssign?.(value)
+                onExpertAssign?.(value === "none" ? "" : value)
               }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select an expert" />
+                <SelectValue placeholder="Select an expert">
+                  {(() => {
+                    if (request.expert?.id?.toString() === currentUser.id) {
+                      return "AI (Assigned to Self)"
+                    }
+                    if (request.expert?.email) {
+                      return request.expert.email
+                    }
+                    return "None"
+                  })()}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
-                <SelectItem value={currentUser.id}>AI (Assign to Self)</SelectItem>
+                <SelectItem value="none">None</SelectItem>
+                <SelectItem value={currentUser.id}>
+                  {request.expert?.id?.toString() === currentUser.id ? "AI (Assigned to Self)" : "AI (Assign to Self)"}
+                </SelectItem>
                 {experts.map((expert) => (
                   <SelectItem key={expert.id} value={expert.id}>
                     {expert.email}

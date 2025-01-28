@@ -124,7 +124,10 @@ export default function AdminHome({ requests: initialRequests, experts: initialE
       console.log('Updating request with data:', updateData)
       const { error } = await supabase
         .from("requests")
-        .update(updateData)
+        .update({
+          ...updateData,
+          accepted_at: isAIAssignment ? new Date().toISOString() : null
+        })
         .eq("id", requestId)
 
       if (error) throw error
