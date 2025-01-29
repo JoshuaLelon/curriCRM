@@ -1,27 +1,32 @@
-import { Annotation } from '@langchain/langgraph'
+import { StateGraphArgs } from '@langchain/langgraph'
 
-// Define our workflow state structure
-export const WorkflowAnnotation = Annotation.Root({
-  requestId: Annotation<string>(),
-  context: Annotation<any>({
-    value: (x: any) => x,
+export interface WorkflowState {
+  requestId: string
+  context: any
+  planItems: string[]
+  resources: Record<string, { title: string; url: string }[]>
+}
+
+export type WorkflowStateUpdate = Partial<WorkflowState>
+
+export const graphState: StateGraphArgs<WorkflowState>["channels"] = {
+  requestId: {
+    value: (x: string, y?: string) => y ?? x,
+    default: () => "",
+  },
+  context: {
+    value: (x: any, y?: any) => y ?? x,
     default: () => null,
-  }),
-  planItems: Annotation<string[]>({
-    value: (x: string[]) => x,
+  },
+  planItems: {
+    value: (x: string[], y: string[]) => y,
     default: () => [],
-  }),
-  resources: Annotation<Record<string, { title: string; url: string }[]>>({
-    value: (x: Record<string, { title: string; url: string }[]>) => x,
+  },
+  resources: {
+    value: (x: Record<string, { title: string; url: string }[]>, y: Record<string, { title: string; url: string }[]>) => y,
     default: () => ({}),
-  }),
-})
-
-// Export the state type for use in other files
-export type WorkflowState = typeof WorkflowAnnotation.State
-
-// Export the update type for use in node functions
-export type WorkflowStateUpdate = typeof WorkflowAnnotation.Update
+  },
+}
 
 export interface WorkflowEvent {
   nodeName: string

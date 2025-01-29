@@ -3,6 +3,7 @@ import { ChatOpenAI } from '@langchain/openai'
 import { HumanMessage } from '@langchain/core/messages'
 import { RunnableConfig } from '@langchain/core/runnables'
 import type { WorkflowState, WorkflowStateUpdate } from './types'
+import crypto from 'crypto'
 
 type NodeFunction = (state: WorkflowState, config?: RunnableConfig) => Promise<WorkflowStateUpdate>
 
@@ -27,7 +28,7 @@ export const gatherContextNode: NodeFunction = async (state) => {
     }
 
     console.log(`[AI Node: gatherContext] Successfully loaded context for request ${state.requestId}`)
-    return { context: data }
+    return { ...state, context: data }
   } catch (error) {
     console.error(`[AI Node: gatherContext] Error for request ${state.requestId}:`, error)
     throw error
@@ -38,7 +39,8 @@ export const gatherContextNode: NodeFunction = async (state) => {
 export const planNode: NodeFunction = async (state) => {
   console.log(`[AI Node: plan] Starting for request ${state.requestId}`)
   const tag = state.context?.tag || 'GeneralTopic'
-  console.log(`[AI Node: plan] Planning for tag: ${tag}`)
+  const contentType = state.context?.content_type || 'tutorial'
+  console.log(`[AI Node: plan] Planning for tag: ${tag}, content type: ${contentType}`)
   
   try {
     const model = new ChatOpenAI({ 
@@ -48,7 +50,11 @@ export const planNode: NodeFunction = async (state) => {
     
     console.log(`[AI Node: plan] Calling GPT-4 for request ${state.requestId}`)
     const response = await model.invoke([
-      new HumanMessage(`Outline sub-topics needed to learn about "${tag}". One per line.`),
+      new HumanMessage(`Create a detailed learning plan for ${tag} as a ${contentType}. 
+      Break it down into 5-10 key topics that would help someone learn this subject effectively.
+      Format each topic as a clear, concise phrase.
+      Each topic should be on a new line.
+      Do not include numbers or bullet points.`),
     ])
     
     const planText = response.content
@@ -59,8 +65,8 @@ export const planNode: NodeFunction = async (state) => {
           .filter(Boolean)
       : []
 
-    console.log(`[AI Node: plan] Generated ${planItems.length} plan items for request ${state.requestId}`)
-    return { planItems }
+    console.log(`[AI Node: plan] Generated ${planItems.length} plan items:`, planItems)
+    return { ...state, planItems }
   } catch (error) {
     console.error(`[AI Node: plan] Error for request ${state.requestId}:`, error)
     throw error
@@ -73,7 +79,7 @@ export const resourceSearchNode: NodeFunction = async (state) => {
   const { planItems = [] } = state
   
   try {
-    console.log(`[AI Node: resourceSearch] Processing ${planItems.length} items for request ${state.requestId}`)
+    console.log(`[AI Node: resourceSearch] Processing ${planItems.length} items for request ${state.requestId}:`, planItems)
     const resources: Record<string, { title: string; url: string }[]> = {}
 
     for (const item of planItems) {
@@ -86,8 +92,8 @@ export const resourceSearchNode: NodeFunction = async (state) => {
       ]
     }
 
-    console.log(`[AI Node: resourceSearch] Found resources for ${Object.keys(resources).length} items`)
-    return { resources }
+    console.log(`[AI Node: resourceSearch] Found resources for ${Object.keys(resources).length} items:`, resources)
+    return { ...state, resources }
   } catch (error) {
     console.error(`[AI Node: resourceSearch] Error for request ${state.requestId}:`, error)
     throw error
@@ -96,45 +102,64 @@ export const resourceSearchNode: NodeFunction = async (state) => {
 
 // 4) buildCurriculumNode
 export const buildCurriculumNode: NodeFunction = async (state) => {
-  console.log(`[AI Node: build] Starting for request ${state.requestId}`)
-  const { planItems = [], resources = {}, requestId } = state
-
+  console.log(`[AI Node: buildCurriculum] Starting for request ${state.requestId}`)
+  const { planItems = [], resources = {} } = state
+  
   try {
-    // Create a new row in 'curriculums'
-    console.log(`[AI Node: build] Creating curriculum for request ${requestId}`)
+    console.log(`[AI Node: buildCurriculum] State received:`, { planItems, resourceCount: Object.keys(resources).length })
     const curriculumId = crypto.randomUUID()
-    const { data: newCurriculum, error: curriculumError } = await supabase
+    console.log(`[AI Node: buildCurriculum] Creating curriculum ${curriculumId} for request ${state.requestId} with ${planItems.length} items`)
+    
+    // Create curriculum
+    const { data: curriculum, error: curriculumError } = await supabase
       .from('curriculums')
       .insert([{ 
         id: curriculumId,
-        request_id: requestId 
+        request_id: state.requestId 
       }])
       .select()
       .single()
     
     if (curriculumError) {
-      console.error(`[AI Node: build] Error creating curriculum:`, curriculumError)
+      console.error(`[AI Node: buildCurriculum] Error creating curriculum for request ${state.requestId}:`, curriculumError)
       throw curriculumError
     }
-    console.log(`[AI Node: build] Created curriculum ${curriculumId}`)
+    
+    console.log(`[AI Node: buildCurriculum] Created curriculum ${curriculum.id} for request ${state.requestId}`)
 
-    // For each plan item, create a source and a curriculum_node
-    for (let i = 0; i < planItems.length; i++) {
+    // Create curriculum nodes
+    const nodes = planItems.map((item, index) => ({
+      id: crypto.randomUUID(),
+      curriculum_id: curriculum.id,
+      source_id: null, // Will be set after source creation
+      level: index,
+      index_in_curriculum: index,
+      start_time: 0,
+      end_time: 0
+    }))
+
+    console.log(`[AI Node: buildCurriculum] Creating ${nodes.length} curriculum nodes for curriculum ${curriculum.id}:`, nodes)
+    
+    // First create all nodes
+    const { error: nodesError } = await supabase
+      .from('curriculum_nodes')
+      .insert(nodes)
+    
+    if (nodesError) {
+      console.error(`[AI Node: buildCurriculum] Error creating nodes for curriculum ${curriculum.id}:`, nodesError)
+      throw nodesError
+    }
+
+    // Then create sources and update nodes with source IDs
+    for (let i = 0; i < nodes.length; i++) {
       const item = planItems[i]
-      console.log(`[AI Node: build] Processing item ${i + 1}/${planItems.length}: ${item}`)
-      
       const [firstResource] = resources[item] || []
-      if (!firstResource) {
-        console.log(`[AI Node: build] No resource found for item: ${item}, skipping`)
-        continue
-      }
+      if (!firstResource) continue
 
       // Create source
-      const sourceId = crypto.randomUUID()
-      const { data: newSource, error: sourceError } = await supabase
+      const { data: source, error: sourceError } = await supabase
         .from('sources')
         .insert([{ 
-          id: sourceId,
           title: firstResource.title, 
           URL: firstResource.url 
         }])
@@ -142,34 +167,26 @@ export const buildCurriculumNode: NodeFunction = async (state) => {
         .single()
       
       if (sourceError) {
-        console.error(`[AI Node: build] Error creating source:`, sourceError)
+        console.error(`[AI Node: buildCurriculum] Error creating source for item ${i}:`, sourceError)
         throw sourceError
       }
-      console.log(`[AI Node: build] Created source ${sourceId}`)
 
-      // Create curriculum node
-      const nodeId = crypto.randomUUID()
+      // Update node with source ID
       const { error: nodeError } = await supabase
         .from('curriculum_nodes')
-        .insert([{
-          id: nodeId,
-          curriculum_id: newCurriculum.id,
-          source_id: newSource.id,
-          level: i,
-          index_in_curriculum: i,
-        }])
-      
+        .update({ source_id: source.id })
+        .eq('id', nodes[i].id)
+
       if (nodeError) {
-        console.error(`[AI Node: build] Error creating curriculum node:`, nodeError)
+        console.error(`[AI Node: buildCurriculum] Error updating node ${nodes[i].id} with source:`, nodeError)
         throw nodeError
       }
-      console.log(`[AI Node: build] Created curriculum node ${nodeId}`)
     }
 
-    console.log(`[AI Node: build] Successfully built curriculum for request ${requestId}`)
-    return {}
+    console.log(`[AI Node: buildCurriculum] Successfully created curriculum structure for request ${state.requestId}`)
+    return { ...state }
   } catch (error) {
-    console.error(`[AI Node: build] Error for request ${state.requestId}:`, error)
+    console.error(`[AI Node: buildCurriculum] Error for request ${state.requestId}:`, error)
     throw error
   }
 } 
