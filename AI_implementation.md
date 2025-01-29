@@ -30,7 +30,9 @@
 - [x] Make sure that the curriculum generated has  start / end times (they can be random)
 - [x] Make it so that I can just assign the request to the AI and i can leave the page without having to wait for it to finish (if that isn't the case already)
 - [x] make sure the curriculum table is sorted in order of curriculum index
-- [ ] implement 20 test cases according to the below specifications
+- [x] fix the URL/url casing issue in the curriculum table
+- [x] update the curriculum table numbering to show position from top (1,2,3...) while maintaining reverse sort order
+- [ ] implement 20 test cases according to the below specifications (Agent Accuracy Metrics)
   - [ ] figure out what that looks like for our application (e.g. what are the inputs and outputs? Annotate but for the javascript version?)
   - [ ] figure out how to leverage langsmith for this
   - [ ] figure out what the right tests look like
