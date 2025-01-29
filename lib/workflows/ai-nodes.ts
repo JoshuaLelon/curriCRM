@@ -4,6 +4,12 @@ import { HumanMessage } from '@langchain/core/messages'
 import { RunnableConfig } from '@langchain/core/runnables'
 import type { WorkflowState, WorkflowStateUpdate } from './types'
 import crypto from 'crypto'
+import { TavilyClient } from 'tavily'
+
+interface TavilySearchResult {
+  title: string;
+  url: string;
+}
 
 type NodeFunction = (state: WorkflowState, config?: RunnableConfig) => Promise<WorkflowStateUpdate>
 
@@ -82,14 +88,34 @@ export const resourceSearchNode: NodeFunction = async (state) => {
     console.log(`[AI Node: resourceSearch] Processing ${planItems.length} items for request ${state.requestId}:`, planItems)
     const resources: Record<string, { title: string; URL: string }[]> = {}
 
+    const tavilyClient = new TavilyClient()
+
     for (const item of planItems) {
       console.log(`[AI Node: resourceSearch] Finding resources for item: ${item}`)
-      resources[item] = [
-        {
-          title: `Mock resource for ${item}`,
-          URL: `https://example.com/${encodeURIComponent(item)}`
-        }
-      ]
+      
+      try {
+        const searchResults = await tavilyClient.search({
+          query: `${item} video tutorial site:youtube.com OR site:vimeo.com`,
+          search_depth: 'advanced',
+          max_results: 3,
+          include_images: false,
+          include_answer: false
+        })
+
+        resources[item] = searchResults.results.map((result: TavilySearchResult) => ({
+          title: result.title,
+          URL: result.url
+        }))
+
+        console.log(`[AI Node: resourceSearch] Found ${resources[item].length} resources for item: ${item}`)
+      } catch (searchError) {
+        console.error(`[AI Node: resourceSearch] Error searching for item ${item}:`, searchError)
+        // Fallback to a mock resource if Tavily search fails
+        resources[item] = [{
+          title: `Video tutorial for ${item}`,
+          URL: `https://youtube.com/watch?v=example`
+        }]
+      }
     }
 
     console.log(`[AI Node: resourceSearch] Found resources for ${Object.keys(resources).length} items:`, resources)
@@ -127,11 +153,39 @@ export const buildCurriculumNode: NodeFunction = async (state) => {
     
     console.log(`[AI Node: buildCurriculum] Created curriculum ${curriculum.id} for request ${state.requestId}`)
 
-    // Create curriculum nodes
+    // First create all sources and store their IDs
+    const sourceIds: (string | null)[] = []
+    for (let i = 0; i < planItems.length; i++) {
+      const item = planItems[i]
+      const [firstResource] = resources[item] || []
+      
+      if (firstResource) {
+        // Create source with correct URL case
+        const { data: source, error: sourceError } = await supabase
+          .from("sources")
+          .insert([{
+            id: crypto.randomUUID(),
+            title: firstResource.title,
+            URL: firstResource.URL
+          }])
+          .select()
+          .single()
+        
+        if (sourceError) {
+          console.error(`[AI Node: buildCurriculum] Error creating source for item ${i}:`, sourceError)
+          throw sourceError
+        }
+        sourceIds[i] = source.id
+      } else {
+        sourceIds[i] = null
+      }
+    }
+
+    // Then create all nodes with the correct source IDs
     const nodes = planItems.map((item, index) => ({
       id: crypto.randomUUID(),
       curriculum_id: curriculum.id,
-      source_id: null,
+      source_id: sourceIds[index],
       level: index,
       index_in_curriculum: index,
       start_time: 0,
@@ -140,7 +194,6 @@ export const buildCurriculumNode: NodeFunction = async (state) => {
 
     console.log(`[AI Node: buildCurriculum] Creating ${nodes.length} curriculum nodes for curriculum ${curriculum.id}:`, nodes)
     
-    // First create all nodes
     const { error: nodesError } = await supabase
       .from('curriculum_nodes')
       .insert(nodes)
@@ -150,43 +203,10 @@ export const buildCurriculumNode: NodeFunction = async (state) => {
       throw nodesError
     }
 
-    // Then create sources and update nodes with source IDs
-    for (let i = 0; i < nodes.length; i++) {
-      const item = planItems[i]
-      const [firstResource] = resources[item] || []
-      if (!firstResource) continue
-
-      // Create source with correct URL case
-      const { data: source, error: sourceError } = await supabase
-        .from("sources")
-        .insert([{
-          title: firstResource.title,
-          URL: firstResource.URL
-        }])
-        .select()
-        .single()
-      
-      if (sourceError) {
-        console.error(`[AI Node: buildCurriculum] Error creating source for item ${i}:`, sourceError)
-        throw sourceError
-      }
-
-      // Update node with source ID
-      const { error: nodeError } = await supabase
-        .from('curriculum_nodes')
-        .update({ source_id: source.id })
-        .eq('id', nodes[i].id)
-
-      if (nodeError) {
-        console.error(`[AI Node: buildCurriculum] Error updating node ${nodes[i].id} with source:`, nodeError)
-        throw nodeError
-      }
-    }
-
     console.log(`[AI Node: buildCurriculum] Successfully created curriculum structure for request ${state.requestId}`)
     return { ...state }
   } catch (error) {
     console.error(`[AI Node: buildCurriculum] Error for request ${state.requestId}:`, error)
     throw error
   }
-} 
+}

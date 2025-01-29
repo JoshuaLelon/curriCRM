@@ -17,8 +17,21 @@ interface CurriculumTreeProps {
 }
 
 // Define node types outside of component to prevent recreation
-const nodeTypes = {}
-const edgeTypes = {}
+function CustomNode({ data }: { data: { title: string; url: string } }) {
+  return (
+    <div 
+      className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm cursor-pointer hover:bg-gray-50"
+      onClick={() => window.open(data.url, '_blank')}
+    >
+      <p className="text-sm font-medium text-gray-900 truncate">{data.title}</p>
+    </div>
+  );
+}
+
+const nodeTypes = {
+  custom: CustomNode
+};
+const edgeTypes = {};
 
 export default function CurriculumTree({ nodes }: CurriculumTreeProps) {
   // Transform curriculum nodes into React Flow nodes and edges
@@ -53,22 +66,16 @@ export default function CurriculumTree({ nodes }: CurriculumTreeProps) {
 
       const nodeData = {
         title: node.source?.title || "Untitled",
-        URL: node.source?.URL || "#",
+        url: node.source?.url || "#",
       }
 
       flowNodes.push({
         id: node.id.toString(),
+        type: 'custom',
         position: { x, y },
         data: nodeData,
         sourcePosition: Position.Bottom,
         targetPosition: Position.Top,
-        style: {
-          background: "#fff",
-          border: "1px solid #ddd",
-          borderRadius: "8px",
-          padding: "10px",
-          width: 200,
-        },
       })
 
       // Create edges based on level and index relationships
