@@ -3,7 +3,7 @@ import type { RunnableConfig } from "@langchain/core/runnables"
 import type { Run, RunCreate, RunUpdate } from 'langsmith/schemas'
 import { v4 as uuidv4 } from 'uuid'
 
-// Create LangSmith client
+// Create LangSmith client as a singleton
 export const client = new Client({
   apiUrl: process.env.LANGSMITH_ENDPOINT,
   apiKey: process.env.LANGSMITH_API_KEY
@@ -28,15 +28,16 @@ export class WorkflowMetrics {
   private startTime: number
   private requestId: string
   private parentRunId?: string
+  private projectName: string
 
   constructor(requestId: string) {
     this.startTime = Date.now()
     this.requestId = requestId
+    this.projectName = process.env.LANGSMITH_PROJECT || 'default'
   }
 
   async initializeParentRun() {
     try {
-      const client = new Client()
       const runId = uuidv4()
       
       // Create the parent run
@@ -45,6 +46,7 @@ export class WorkflowMetrics {
         name: 'AI Workflow',
         run_type: 'chain',
         start_time: this.startTime,
+        project_name: this.projectName,
         inputs: {
           requestId: this.requestId
         }
@@ -58,14 +60,12 @@ export class WorkflowMetrics {
   }
 
   async onNodeStart(nodeName: string) {
-    const runId = uuidv4()
-    this.nodeTimings[nodeName] = {
-      start: Date.now(),
-      runId
-    }
-
     try {
-      const client = new Client()
+      const runId = uuidv4()
+      this.nodeTimings[nodeName] = {
+        start: Date.now(),
+        runId
+      }
 
       // Create the child run
       await client.createRun({
@@ -74,8 +74,10 @@ export class WorkflowMetrics {
         run_type: 'chain',
         start_time: Date.now(),
         parent_run_id: this.parentRunId,
+        project_name: this.projectName,
         inputs: {
-          requestId: this.requestId
+          requestId: this.requestId,
+          nodeName
         }
       })
 
@@ -85,20 +87,27 @@ export class WorkflowMetrics {
     }
   }
 
-  async onNodeEnd(nodeName: string) {
+  async onNodeEnd(nodeName: string, outputs?: any) {
     const timing = this.nodeTimings[nodeName]
     if (timing) {
       timing.end = Date.now()
 
       if (timing.runId) {
         try {
-          const client = new Client()
-          await client.updateRun(timing.runId, {
+          const runUpdate: RunUpdate = {
             end_time: timing.end,
             outputs: {
-              duration: timing.end - timing.start
+              duration: timing.end - timing.start,
+              ...outputs
             }
-          })
+          }
+
+          // If outputs contains an error, mark the run as failed
+          if (outputs?.error) {
+            runUpdate.error = String(outputs.error)
+          }
+
+          await client.updateRun(timing.runId, runUpdate)
           console.log(`Updated child run ${timing.runId} for node ${nodeName}`)
         } catch (error) {
           console.error(`Error updating child run for node ${nodeName}:`, error)
@@ -119,14 +128,13 @@ export class WorkflowMetrics {
     return Date.now() - this.startTime
   }
 
-  async logMetrics(success: boolean) {
+  async logMetrics(success: boolean, finalOutputs?: any) {
     if (!this.parentRunId) {
       console.error('No parent run ID available for logging metrics')
       return
     }
 
     try {
-      const client = new Client()
       const endTime = Date.now()
 
       // Create the update with end time and outputs
@@ -141,7 +149,8 @@ export class WorkflowMetrics {
               runId: timing.runId
             }
             return acc
-          }, {} as Record<string, { duration?: number; runId?: string }>)
+          }, {} as Record<string, { duration?: number; runId?: string }>),
+          ...finalOutputs
         }
       }
 
@@ -156,21 +165,21 @@ export class WorkflowMetrics {
 
 // Higher-order function to trace node execution
 export function traceNode(nodeName: string) {
-  return function<T extends NodeFn>(node: T): T {
-    return (async (state: Record<string, any>, config?: RunnableConfig) => {
+  return function (node: NodeFn): NodeFn {
+    return async (state: Record<string, any>, config?: RunnableConfig) => {
       const metrics = state.__metrics as WorkflowMetrics
       if (metrics) {
         await metrics.onNodeStart(nodeName)
         try {
           const result = await node(state, config)
-          await metrics.onNodeEnd(nodeName)
+          await metrics.onNodeEnd(nodeName, result)
           return result
         } catch (error) {
-          await metrics.onNodeEnd(nodeName)
+          await metrics.onNodeEnd(nodeName, { error: String(error) })
           throw error
         }
       }
       return node(state, config)
-    }) as T
+    }
   }
 } 

@@ -7,7 +7,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid'
-import { Client } from 'langsmith'
+import { client as langsmith } from '@/lib/langsmith'
 import type { Run } from 'langsmith/schemas'
 import type { RunCreate, RunUpdate } from 'langsmith/schemas'
 import { runAIWorkflow } from '@/lib/workflows/ai-runner'
@@ -33,15 +33,6 @@ interface Curriculum {
   request_id: string
   curriculum_nodes: CurriculumNode[]
 }
-
-/**
- * LangSmith Client Setup
- * Used for tracking workflow execution, though not critical for test success
- */
-const client = new Client({
-  apiUrl: process.env.LANGSMITH_ENDPOINT,
-  apiKey: process.env.LANGSMITH_API_KEY,
-})
 
 /**
  * Helper Functions
@@ -84,6 +75,19 @@ jest.mock('@/lib/supabase', () => ({
 }))
 
 describe('AI Workflow Tests', () => {
+  beforeAll(async () => {
+    // Verify LangSmith connection
+    try {
+      const projectName = process.env.LANGSMITH_PROJECT || 'default'
+      console.log('LangSmith Debug:', {
+        endpoint: process.env.LANGSMITH_ENDPOINT,
+        project: projectName
+      })
+    } catch (error) {
+      console.error('LangSmith connection error:', error)
+    }
+  })
+
   beforeEach(() => {
     jest.clearAllMocks()
   })
@@ -354,7 +358,27 @@ describe('AI Workflow Tests', () => {
                     URL: `https://example.com/${encodeURIComponent(topic)}`
                   }
                 }))
-              }
+              },
+              error: null
+            })
+          }
+        }
+        if (table === 'requests') {
+          return {
+            select: jest.fn().mockReturnThis(),
+            insert: jest.fn().mockReturnThis(),
+            update: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            single: jest.fn().mockResolvedValue({
+              data: {
+                id: mockRequest.id,
+                tag: testCase.input.tag,
+                description: testCase.input.description,
+                level: testCase.input.level,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              },
+              error: null
             })
           }
         }
@@ -363,7 +387,10 @@ describe('AI Workflow Tests', () => {
           insert: jest.fn().mockReturnThis(),
           update: jest.fn().mockReturnThis(),
           eq: jest.fn().mockReturnThis(),
-          single: jest.fn().mockResolvedValue({ data: mockRequest })
+          single: jest.fn().mockResolvedValue({ 
+            data: mockRequest,
+            error: null
+          })
         }
       })
 
@@ -372,64 +399,31 @@ describe('AI Workflow Tests', () => {
        */
       const startTime = Date.now()
       const runId = uuidv4()
-      console.log('LangSmith Debug:', {
-        endpoint: process.env.LANGSMITH_ENDPOINT,
-        project: process.env.LANGSMITH_PROJECT,
-        tracing: process.env.LANGSMITH_TRACING,
-        runId
-      })
       
       const runCreate: RunCreate = {
         id: runId,
         name: testCase.name,
         run_type: 'chain',
         inputs: testCase.input,
-        start_time: startTime
-      }
-      console.log('Creating LangSmith run with config:', runCreate)
-      
-      try {
-        await client.createRun(runCreate)
-        console.log('Successfully created LangSmith run')
-        
-        // Add a small delay to allow for API propagation
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        
-        // List all runs in the project
-        console.log('Listing all runs in project:', process.env.LANGSMITH_PROJECT)
-        const allRuns = client.listRuns({
-          projectName: process.env.LANGSMITH_PROJECT || 'default'
-        })
-        const runs = await getAllRuns(allRuns)
-        console.log('Found runs:', runs.length)
-        if (runs.length > 0) {
-          console.log('Latest run:', {
-            id: runs[0].id,
-            name: runs[0].name,
-            start_time: runs[0].start_time
-          })
-        }
-        
-        // Try to find our specific run
-        const targetRun = runs.find(run => run.id === runId)
-        console.log('Found target run:', targetRun ? 'Yes' : 'No')
-      } catch (error) {
-        console.error('Failed to create LangSmith run:', error)
-        if (error instanceof Error) {
-          console.error('Error details:', {
-            message: error.message,
-            name: error.name,
-            stack: error.stack
-          })
-        }
+        start_time: startTime,
+        tags: ['test', testCase.input.tag]
       }
 
       try {
-        /**
-         * Workflow Execution and Validation
-         */
-        await runAIWorkflow(mockRequest.id)
-        const endTime = Date.now()
+        await langsmith.createRun(runCreate)
+        console.log('Successfully created LangSmith run')
+
+        // Run the test with thread_id
+        const result = await runAIWorkflow(mockRequest.id)
+
+        // Update run with results
+        await langsmith.updateRun(runId, {
+          end_time: Date.now(),
+          outputs: {
+            success: true,
+            result
+          }
+        })
 
         // Get curriculum from mock Supabase
         const curriculum = await supabase
@@ -454,34 +448,15 @@ describe('AI Workflow Tests', () => {
           })
         }
 
-        // Update LangSmith run with results
-        console.log('Updating LangSmith run with results')
-        const runUpdate: RunUpdate = {
-          end_time: endTime,
-          outputs: {
-            success: true,
-            speedMs: endTime - startTime,
-            curriculum: {
-              nodeCount: curriculum.data?.curriculum_nodes?.length || 0,
-              topics: curriculum.data?.curriculum_nodes?.map(n => n.sources?.title) || []
-            }
-          }
-        }
-        await client.updateRun(runId, runUpdate)
-        console.log('Successfully updated LangSmith run')
-
       } catch (error) {
-        // Update LangSmith run with error
-        console.error('Test failed:', error)
-        console.log('Updating LangSmith run with error')
-        const runUpdate: RunUpdate = {
+        // Update run with error
+        await langsmith.updateRun(runId, {
           end_time: Date.now(),
           error: String(error),
           outputs: {
             success: false
           }
-        }
-        await client.updateRun(runId, runUpdate)
+        })
         throw error
       }
     })

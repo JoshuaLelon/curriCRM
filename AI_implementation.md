@@ -489,3 +489,22 @@ Be sure to keep the project's README files updated with references and usage exa
      - Added source and target handles to CustomNode component with proper positioning
      - Added sourceHandle and targetHandle IDs to edge definitions
    - Result: Success - edges now render correctly between nodes in the curriculum tree
+
+4. Fixing LangSmith logging (Checklist item: implement tracing for workflow nodes using LangSmith client)
+   - First attempt: Basic implementation failed with missing thread_id error
+   - Second attempt: Added thread_id but had issues with Supabase channel cleanup
+   - Third attempt: Fixed all issues by:
+     - Adding thread_id to RunnableConfig for LangGraph's MemorySaver
+     - Fixing Supabase channel handling
+     - Properly structuring parent/child runs in WorkflowMetrics
+   - Fourth attempt: Improved LangSmith integration:
+     - Added proper tracing to ChatOpenAI model using withConfig
+     - Added project_name to all runs for proper organization
+     - Fixed parent/child run relationships
+     - Added better error handling and metadata
+   - Result: Success - all runs properly logged to LangSmith with:
+     - Parent run tracking overall workflow
+     - Child runs for each node with inputs/outputs
+     - OpenAI calls properly traced
+     - Proper error handling and metrics
+     - Real-time progress updates

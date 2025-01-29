@@ -1,7 +1,7 @@
-import { StateGraph } from '@langchain/langgraph'
 import { supabase } from '@/lib/supabase'
-import { graphState, WorkflowState } from './types'
+import { StateGraph, MemorySaver, Annotation } from '@langchain/langgraph'
 import { WorkflowMetrics } from '@/lib/langsmith'
+import { v4 as uuidv4 } from 'uuid'
 import {
   gatherContextNode,
   planNode,
@@ -9,123 +9,81 @@ import {
   buildCurriculumNode,
 } from './ai-nodes'
 
-async function announceProgress(requestId: string, step: string, current: number, total: number) {
-  console.log(`[AI Runner] Broadcasting progress for request ${requestId}: Step ${current}/${total} (${step})`)
-  // Add your progress broadcast logic here
-}
+// Shape of the shared state for our workflow:
+const WorkflowAnnotation = Annotation.Root({
+  requestId: Annotation<string>(),
+  context: Annotation<any>(),
+  planItems: Annotation<string[]>(),
+  resources: Annotation<Record<string, { title: string; url: string }[]>>(),
+  __metrics: Annotation<WorkflowMetrics>()
+})
 
 export async function runAIWorkflow(requestId: string) {
-  console.log(`[AI Runner] Starting workflow for request ${requestId}`)
-  
-  // Initialize workflow metrics
+  // Initialize metrics
   const metrics = new WorkflowMetrics(requestId)
-  
+  await metrics.initializeParentRun()
+
+  // 1) Assemble the state graph
+  const workflow = new StateGraph(WorkflowAnnotation)
+    .addNode('gatherContext', gatherContextNode)
+    .addNode('plan', planNode)
+    .addNode('resourceSearch', resourceSearchNode)
+    .addNode('build', buildCurriculumNode)
+    // Edges define the order of steps
+    .addEdge('__start__', 'gatherContext')
+    .addEdge('gatherContext', 'plan')
+    .addEdge('plan', 'resourceSearch')
+    .addEdge('resourceSearch', 'build')
+    .addEdge('build', '__end__')
+
+  const graphApp = workflow.compile({ 
+    checkpointer: new MemorySaver() 
+  })
+
   try {
-    // Initialize parent run in LangSmith
-    await metrics.initializeParentRun()
-    
-    // Set started_at when workflow begins
-    console.log(`[AI Runner] Setting started_at for request ${requestId}`)
-    const { error: startError } = await supabase
-      .from('requests')
-      .update({ started_at: new Date().toISOString() })
-      .eq('id', requestId)
-    
-    if (startError) {
-      console.error(`[AI Runner] Error setting started_at for request ${requestId}:`, startError)
-      throw startError
-    }
-
-    // 1) Assemble the state graph
-    console.log(`[AI Runner] Assembling state graph for request ${requestId}`)
-    const workflow = new StateGraph({
-      channels: graphState
-    })
-      // Add nodes with progress tracking wrappers
-      .addNode('gatherContext', async (state) => {
-        console.log(`[AI Runner] Executing gatherContext node for request ${requestId}, input state:`, state)
-        await announceProgress(requestId, 'gatherContext', 1, 4)
-        const result = await gatherContextNode(state)
-        console.log(`[AI Runner] Completed gatherContext node for request ${requestId}, result:`, result)
-        return result
-      })
-      .addNode('plan', async (state) => {
-        console.log(`[AI Runner] Executing plan node for request ${requestId}, input state:`, state)
-        await announceProgress(requestId, 'plan', 2, 4)
-        const result = await planNode(state)
-        console.log(`[AI Runner] Completed plan node for request ${requestId}, result:`, result)
-        return result
-      })
-      .addNode('resourceSearch', async (state) => {
-        console.log(`[AI Runner] Executing resourceSearch node for request ${requestId}, input state:`, state)
-        await announceProgress(requestId, 'resourceSearch', 3, 4)
-        const result = await resourceSearchNode(state)
-        console.log(`[AI Runner] Completed resourceSearch node for request ${requestId}, result:`, result)
-        return result
-      })
-      .addNode('build', async (state) => {
-        console.log(`[AI Runner] Executing build node for request ${requestId}, input state:`, state)
-        await announceProgress(requestId, 'build', 4, 4)
-        const result = await buildCurriculumNode(state)
-        console.log(`[AI Runner] Completed build node for request ${requestId}, result:`, result)
-        return result
-      })
-      // Edges define the order of steps
-      .addEdge('__start__', 'gatherContext')
-      .addEdge('gatherContext', 'plan')
-      .addEdge('plan', 'resourceSearch')
-      .addEdge('resourceSearch', 'build')
-      .addEdge('build', '__end__')
-
-    console.log(`[AI Runner] Compiling graph for request ${requestId}`)
-    const graphApp = workflow.compile()
-
-    // Run the graph from the start
-    console.log(`[AI Runner] Invoking workflow for request ${requestId}`)
-    const initialState = { 
-      requestId,
-      context: null,
-      planItems: [],
-      resources: {},
-      __metrics: metrics // Pass metrics through state
-    }
-
-    try {
-      const finalState = await graphApp.invoke(initialState);
-      console.log(`[AI Runner] Workflow execution completed with final state:`, finalState);
-      
-      // Log successful completion metrics
-      await metrics.logMetrics(true)
-      
-      // Mark request as finished in the DB
-      console.log(`[AI Runner] Marking request ${requestId} as finished`)
-      const { error: finishError } = await supabase
-        .from('requests')
-        .update({ finished_at: new Date().toISOString() })
-        .eq('id', requestId)
-      
-      if (finishError) {
-        console.error(`[AI Runner] Error setting finished_at for request ${requestId}:`, finishError)
-        throw finishError
+    // 2) Run the graph from the start with metrics
+    const initialState = { requestId, __metrics: metrics }
+    const config = {
+      configurable: {
+        thread_id: uuidv4() // Add thread_id for MemorySaver
       }
-      
-      console.log(`[AI Runner] Workflow completed successfully for request ${requestId}`)
-    } catch (error) {
-      // Log failure metrics
-      await metrics.logMetrics(false)
-      throw error
     }
+    const result = await graphApp.invoke(initialState, config)
+
+    // 3) Broadcast progress
+    await announceProgress(requestId, 'build')
+
+    // 4) Mark request as finished in the DB
+    await supabase
+      .from('requests')
+      .update({ finished_at: new Date().toISOString() })
+      .eq('id', requestId)
+
+    // 5) Log final metrics
+    await metrics.logMetrics(true, result)
   } catch (error) {
-    console.error(`[AI Runner] Error in workflow for request ${requestId}:`, error)
-    if (error instanceof Error) {
-      console.error(`[AI Runner] Error details for request ${requestId}:`, {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      })
-    }
-    // Log failure metrics
-    await metrics.logMetrics(false)
+    console.error('Workflow error:', error)
+    await metrics.logMetrics(false, { error: String(error) })
     throw error
   }
+}
+
+// Helper function to broadcast progress
+async function announceProgress(requestId: string, nodeName: string) {
+  // Map nodeName => step number. Adjust as needed.
+  const stepMap: Record<string, number> = {
+    gatherContext: 1,
+    plan: 2,
+    resourceSearch: 3,
+    build: 4,
+  }
+
+  await supabase.channel(`request_${requestId}_updates`).send({
+    type: 'broadcast',
+    event: 'progress',
+    payload: {
+      step: stepMap[nodeName] ?? 0,
+      totalSteps: 4,
+    },
+  })
 } 
