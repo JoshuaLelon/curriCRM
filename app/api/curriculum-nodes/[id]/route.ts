@@ -90,13 +90,14 @@ export async function PATCH(
 
     // Update source if needed
     if (source) {
+      const sourceData = {
+        title: source.title,
+        URL: source.URL,
+        created_by: user.id
+      }
       const { error: sourceError } = await supabase
         .from("sources")
-        .update({
-          title: source.title,
-          url: source.url,
-          created_by: user.id
-        })
+        .update(sourceData)
         .eq("id", source.id)
 
       if (sourceError) throw sourceError

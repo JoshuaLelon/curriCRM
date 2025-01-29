@@ -51,13 +51,15 @@ export default function CurriculumTree({ nodes }: CurriculumTreeProps) {
       // Y position is simply based on level
       const y = level * ySpacing
 
+      const nodeData = {
+        title: node.source?.title || "Untitled",
+        URL: node.source?.URL || "#",
+      }
+
       flowNodes.push({
         id: node.id.toString(),
         position: { x, y },
-        data: { 
-          label: node.source?.title || "Untitled",
-          url: node.source?.url || "#"
-        },
+        data: nodeData,
         sourcePosition: Position.Bottom,
         targetPosition: Position.Top,
         style: {

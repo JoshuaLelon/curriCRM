@@ -35,8 +35,8 @@ export default function RequestDetails({
   const [request, setRequest] = useState(initialRequest)
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState({
-    sourceName: initialRequest.source?.title || "",
-    sourceUrl: initialRequest.source?.url || "",
+    sourceTitle: initialRequest.source?.title || "",
+    sourceURL: initialRequest.source?.URL || "",
     tag: initialRequest.tag as Tag,
     type: initialRequest.content_type as ContentType,
   })
@@ -45,8 +45,8 @@ export default function RequestDetails({
   useEffect(() => {
     setRequest(initialRequest)
     setFormData({
-      sourceName: initialRequest.source?.title || "",
-      sourceUrl: initialRequest.source?.url || "",
+      sourceTitle: initialRequest.source?.title || "",
+      sourceURL: initialRequest.source?.URL || "",
       tag: initialRequest.tag as Tag,
       type: initialRequest.content_type as ContentType,
     })
@@ -153,15 +153,15 @@ export default function RequestDetails({
     e.preventDefault()
     if (!onUpdate) return
 
-    onUpdate({
+    const updates = {
       tag: formData.tag,
       content_type: formData.type,
       source: {
-        ...request.source,
-        title: formData.sourceName,
-        url: formData.sourceUrl,
+        title: formData.sourceTitle,
+        URL: formData.sourceURL,
       } as Source,
-    })
+    }
+    onUpdate(updates)
     setIsEditing(false)
   }
 
@@ -169,22 +169,22 @@ export default function RequestDetails({
     return (
       <form onSubmit={handleSubmit} className="space-y-4 bg-gray-50 p-6 rounded-lg">
         <div>
-          <Label htmlFor="sourceName">Source Name</Label>
+          <Label htmlFor="sourceTitle">Source Name</Label>
           <Input
-            id="sourceName"
-            value={formData.sourceName}
-            onChange={(e) => setFormData((prev) => ({ ...prev, sourceName: e.target.value }))}
+            id="sourceTitle"
+            value={formData.sourceTitle}
+            onChange={(e) => setFormData((prev) => ({ ...prev, sourceTitle: e.target.value }))}
             required
           />
         </div>
 
         <div>
-          <Label htmlFor="sourceUrl">Source URL</Label>
+          <Label htmlFor="sourceURL">Source URL</Label>
           <Input
-            id="sourceUrl"
-            type="url"
-            value={formData.sourceUrl}
-            onChange={(e) => setFormData((prev) => ({ ...prev, sourceUrl: e.target.value }))}
+            id="sourceURL"
+            type="text"
+            value={formData.sourceURL}
+            onChange={(e) => setFormData((prev) => ({ ...prev, sourceURL: e.target.value }))}
             required
           />
         </div>
@@ -244,14 +244,14 @@ export default function RequestDetails({
         <div>
           <Label className="text-gray-500">URL</Label>
           <div>
-            {request.source?.url ? (
+            {request.source?.URL ? (
               <a
-                href={request.source.url}
+                href={request.source.URL}
                 className="text-blue-600 hover:underline"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                {request.source.url}
+                {request.source.URL}
               </a>
             ) : (
               "No URL"

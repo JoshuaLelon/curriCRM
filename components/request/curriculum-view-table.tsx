@@ -35,14 +35,14 @@ export default function CurriculumViewTable({ nodes }: CurriculumViewTableProps)
             <TableRow key={node.id}>
               <TableCell>{node.source?.title || "Untitled"}</TableCell>
               <TableCell>
-                {node.source?.url ? (
+                {node.source?.URL ? (
                   <a
-                    href={node.source.url}
+                    href={node.source.URL}
                     className="text-blue-600 hover:underline"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    {node.source.url}
+                    {node.source.URL}
                   </a>
                 ) : (
                   "No URL"

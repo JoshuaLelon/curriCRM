@@ -163,7 +163,7 @@ export default function RequestPage({ params }: { params: { id: string } }) {
           .upsert({
             id: request.source?.id || undefined,
             title: updates.source.title,
-            url: updates.source.url,
+            URL: updates.source.URL,
             created_by: request.student_id
           })
           .select()

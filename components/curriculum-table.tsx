@@ -28,12 +28,12 @@ export default function CurriculumTable({
   const [editingNode, setEditingNode] = useState<string | null>(null)
   const [editValues, setEditValues] = useState<{
     title: string
-    url: string
+    URL: string
     startTime: number
     endTime: number
   }>({
     title: "",
-    url: "",
+    URL: "",
     startTime: 0,
     endTime: 0,
   })
@@ -42,7 +42,7 @@ export default function CurriculumTable({
     setEditingNode(node.id)
     setEditValues({
       title: node.source?.title || "",
-      url: node.source?.URL || "",
+      URL: node.source?.URL || "",
       startTime: node.start_time,
       endTime: node.end_time,
     })
@@ -54,7 +54,7 @@ export default function CurriculumTable({
       if (node.source) {
         await onSourceUpdate(node.source.id, {
           title: editValues.title,
-          URL: editValues.url,
+          URL: editValues.URL,
         })
       }
 
@@ -98,9 +98,9 @@ export default function CurriculumTable({
                         placeholder="Source title"
                       />
                       <Input
-                        value={editValues.url}
+                        value={editValues.URL}
                         onChange={(e) =>
-                          setEditValues({ ...editValues, url: e.target.value })
+                          setEditValues({ ...editValues, URL: e.target.value })
                         }
                         placeholder="Source URL"
                       />

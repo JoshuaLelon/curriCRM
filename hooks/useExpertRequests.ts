@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 interface Request {
   id: string
   student: { email: string }
-  source: { title: string; url: string }
+  source: { title: string; URL: string }
   status: string
   type: string
   tag: string

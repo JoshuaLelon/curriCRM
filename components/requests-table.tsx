@@ -93,9 +93,10 @@ export default function RequestsTable({
                 <TableCell className="font-medium">
                   {request.source ? (
                     <a
-                      href={request.source.url}
+                      href={request.source.URL}
                       className="text-blue-600 hover:underline"
-                      onClick={(e) => e.stopPropagation()}
+                      target="_blank"
+                      rel="noopener noreferrer"
                     >
                       {request.source.title}
                     </a>

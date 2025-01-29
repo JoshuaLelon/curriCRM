@@ -80,14 +80,14 @@ export const resourceSearchNode: NodeFunction = async (state) => {
   
   try {
     console.log(`[AI Node: resourceSearch] Processing ${planItems.length} items for request ${state.requestId}:`, planItems)
-    const resources: Record<string, { title: string; url: string }[]> = {}
+    const resources: Record<string, { title: string; URL: string }[]> = {}
 
     for (const item of planItems) {
       console.log(`[AI Node: resourceSearch] Finding resources for item: ${item}`)
       resources[item] = [
         {
           title: `Mock resource for ${item}`,
-          url: `https://example.com/${encodeURIComponent(item)}`
+          URL: `https://example.com/${encodeURIComponent(item)}`
         }
       ]
     }
@@ -131,7 +131,7 @@ export const buildCurriculumNode: NodeFunction = async (state) => {
     const nodes = planItems.map((item, index) => ({
       id: crypto.randomUUID(),
       curriculum_id: curriculum.id,
-      source_id: null, // Will be set after source creation
+      source_id: null,
       level: index,
       index_in_curriculum: index,
       start_time: 0,
@@ -156,12 +156,12 @@ export const buildCurriculumNode: NodeFunction = async (state) => {
       const [firstResource] = resources[item] || []
       if (!firstResource) continue
 
-      // Create source
+      // Create source with correct URL case
       const { data: source, error: sourceError } = await supabase
-        .from('sources')
-        .insert([{ 
-          title: firstResource.title, 
-          URL: firstResource.url 
+        .from("sources")
+        .insert([{
+          title: firstResource.title,
+          URL: firstResource.URL
         }])
         .select()
         .single()

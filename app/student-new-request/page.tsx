@@ -85,8 +85,9 @@ export default function StudentNewRequest() {
           "Authorization": `Bearer ${currentSession.access_token}`
         },
         body: JSON.stringify({
-          title: formData.sourceName,
-          url: formData.sourceUrl
+          title: formData.sourceTitle,
+          URL: formData.sourceURL,
+          created_by: profile.id
         }),
       })
       console.log('Source response status:', sourceResponse.status)

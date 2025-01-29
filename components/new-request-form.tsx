@@ -16,7 +16,7 @@ interface NewRequestFormProps {
 export default function NewRequestForm({ availableTypes, availableTags, onSubmit }: NewRequestFormProps) {
   const [formData, setFormData] = useState({
     sourceName: "",
-    sourceUrl: "",
+    sourceURL: "",
     tag: "",
     type: "",
     startTime: "",
@@ -41,12 +41,12 @@ export default function NewRequestForm({ availableTypes, availableTags, onSubmit
       </div>
 
       <div>
-        <Label htmlFor="sourceUrl">Source URL</Label>
+        <Label htmlFor="sourceURL">Source URL</Label>
         <Input
-          id="sourceUrl"
-          type="url"
-          value={formData.sourceUrl}
-          onChange={(e) => setFormData((prev) => ({ ...prev, sourceUrl: e.target.value }))}
+          id="sourceURL"
+          type="text"
+          value={formData.sourceURL}
+          onChange={(e) => setFormData((prev) => ({ ...prev, sourceURL: e.target.value }))}
           required
         />
       </div>

@@ -30,7 +30,7 @@ function EditableRow({ node, onUpdateNode, onUpdateSource }: EditableRowProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState({
     title: node.source.title,
-    url: node.source.url,
+    URL: node.source.URL,
     startTime: node.start_time.toString(),
     endTime: node.end_time.toString(),
     level: node.level.toString(),
@@ -39,7 +39,7 @@ function EditableRow({ node, onUpdateNode, onUpdateSource }: EditableRowProps) {
   const handleSubmit = () => {
     onUpdateSource({
       title: formData.title,
-      url: formData.url,
+      URL: formData.URL,
     })
     onUpdateNode({
       start_time: parseInt(formData.startTime),
@@ -60,8 +60,8 @@ function EditableRow({ node, onUpdateNode, onUpdateSource }: EditableRowProps) {
         </TableCell>
         <TableCell>
           <Input
-            value={formData.url}
-            onChange={(e) => setFormData((prev) => ({ ...prev, url: e.target.value }))}
+            value={formData.URL}
+            onChange={(e) => setFormData((prev) => ({ ...prev, URL: e.target.value }))}
           />
         </TableCell>
         <TableCell>
@@ -98,7 +98,7 @@ function EditableRow({ node, onUpdateNode, onUpdateSource }: EditableRowProps) {
   return (
     <TableRow>
       <TableCell>{node.source.title}</TableCell>
-      <TableCell>{node.source.url}</TableCell>
+      <TableCell>{node.source.URL}</TableCell>
       <TableCell>{node.start_time}</TableCell>
       <TableCell>{node.end_time}</TableCell>
       <TableCell>{node.level}</TableCell>
@@ -155,7 +155,7 @@ export default function CurriculumTable({
             ) : (
               <TableRow key={node.id}>
                 <TableCell>{node.source.title}</TableCell>
-                <TableCell>{node.source.url}</TableCell>
+                <TableCell>{node.source.URL}</TableCell>
                 <TableCell>{node.start_time}</TableCell>
                 <TableCell>{node.end_time}</TableCell>
                 <TableCell>{node.level}</TableCell>

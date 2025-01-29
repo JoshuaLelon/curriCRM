@@ -14,9 +14,9 @@ export interface Profile {
 
 export interface Source {
   id: string
-  title: string
-  url: string
-  created_by: number
+  title: string | null
+  URL: string | null
+  created_by: number | null
   created_at: string
 }
 

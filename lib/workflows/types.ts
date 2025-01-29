@@ -4,7 +4,7 @@ export interface WorkflowState {
   requestId: string
   context: any
   planItems: string[]
-  resources: Record<string, { title: string; url: string }[]>
+  resources: Record<string, { title: string; URL: string }[]>
 }
 
 export type WorkflowStateUpdate = Partial<WorkflowState>
@@ -23,7 +23,7 @@ export const graphState: StateGraphArgs<WorkflowState>["channels"] = {
     default: () => [],
   },
   resources: {
-    value: (x: Record<string, { title: string; url: string }[]>, y: Record<string, { title: string; url: string }[]>) => y,
+    value: (x: Record<string, { title: string; URL: string }[]>, y: Record<string, { title: string; URL: string }[]>) => y,
     default: () => ({}),
   },
 }
