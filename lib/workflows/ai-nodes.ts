@@ -2,20 +2,11 @@ import { supabase } from '@/lib/supabase'
 import { ChatOpenAI } from '@langchain/openai'
 import { HumanMessage } from '@langchain/core/messages'
 import { RunnableConfig } from '@langchain/core/runnables'
-import { traceNode } from '@/lib/langsmith'
-
-interface BaseState {
-  requestId: string
-  context?: {
-    tag: string
-    content_type: string
-  }
-  planItems?: string[]
-  resources?: Record<string, { title: string; url: string }[]>
-}
+import { traceNode, NodeFn } from '@/lib/langsmith'
+import { WorkflowState, WorkflowStateUpdate } from './types'
 
 // 1) gatherContextNode
-export const gatherContextNode = traceNode('gatherContext')(async (state: BaseState) => {
+export const gatherContextNode = traceNode('gatherContext')(async (state: Record<string, any>): Promise<WorkflowStateUpdate> => {
   const { data, error } = await supabase
     .from('requests')
     .select('*')
@@ -29,9 +20,12 @@ export const gatherContextNode = traceNode('gatherContext')(async (state: BaseSt
 })
 
 // 2) planNode
-export const planNode = traceNode('plan')(async (state: BaseState) => {
+export const planNode = traceNode('plan')(async (state: Record<string, any>): Promise<WorkflowStateUpdate> => {
   const tag = state.context?.tag || 'GeneralTopic'
-  const model = new ChatOpenAI({ temperature: 0 })
+  const model = new ChatOpenAI({ 
+    temperature: 0,
+    modelName: 'gpt-3.5-turbo'
+  })
   const response = await model.call([
     new HumanMessage(`Outline sub-topics needed to learn about "${tag}". One per line.`),
   ])
@@ -47,15 +41,15 @@ export const planNode = traceNode('plan')(async (state: BaseState) => {
 })
 
 // 3) resourceSearchNode
-export const resourceSearchNode = traceNode('resourceSearch')(async (state: BaseState) => {
+export const resourceSearchNode = traceNode('resourceSearch')(async (state: Record<string, any>): Promise<WorkflowStateUpdate> => {
   const { planItems = [] } = state
-  const resources: Record<string, { title: string; url: string }[]> = {}
+  const resources: Record<string, { title: string; URL: string }[]> = {}
 
   for (const item of planItems) {
     resources[item] = [
       {
         title: `Mock resource for ${item}`,
-        url: `https://example.com/${encodeURIComponent(item)}`
+        URL: `https://example.com/${encodeURIComponent(item)}`
       }
     ]
   }
@@ -66,7 +60,7 @@ export const resourceSearchNode = traceNode('resourceSearch')(async (state: Base
 })
 
 // 4) buildCurriculumNode
-export const buildCurriculumNode = traceNode('build')(async (state: BaseState) => {
+export const buildCurriculumNode = traceNode('build')(async (state: Record<string, any>): Promise<WorkflowStateUpdate> => {
   const { planItems = [], resources = {}, requestId } = state
 
   // Create a new row in 'curriculums'
@@ -85,7 +79,7 @@ export const buildCurriculumNode = traceNode('build')(async (state: BaseState) =
 
     const { data: newSource, error: sourceError } = await supabase
       .from('sources')
-      .insert([{ title: firstResource.title, URL: firstResource.url }])
+      .insert([{ title: firstResource.title, URL: firstResource.URL }])
       .select()
       .single()
     if (sourceError) throw sourceError

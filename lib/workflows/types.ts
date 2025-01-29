@@ -1,4 +1,4 @@
-import { StateGraphArgs } from '@langchain/langgraph'
+import { StateGraph, StateGraphArgs } from '@langchain/langgraph'
 
 export interface WorkflowState {
   requestId: string

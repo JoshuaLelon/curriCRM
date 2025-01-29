@@ -1,13 +1,12 @@
 import { StateGraph } from '@langchain/langgraph'
 import { supabase } from '@/lib/supabase'
-import { WorkflowAnnotation } from './types'
+import { graphState, WorkflowState } from './types'
 import {
   gatherContextNode,
   planNode,
   resourceSearchNode,
   buildCurriculumNode,
 } from './ai-nodes'
-import { graphState } from './types'
 
 async function announceProgress(requestId: string, step: string, current: number, total: number) {
   console.log(`[AI Runner] Broadcasting progress for request ${requestId}: Step ${current}/${total} (${step})`)
@@ -36,31 +35,31 @@ export async function runAIWorkflow(requestId: string) {
       channels: graphState
     })
       // Add nodes with progress tracking wrappers
-      .addNode('gatherContext', async (state, config) => {
+      .addNode('gatherContext', async (state) => {
         console.log(`[AI Runner] Executing gatherContext node for request ${requestId}, input state:`, state)
         await announceProgress(requestId, 'gatherContext', 1, 4)
-        const result = await gatherContextNode(state, config)
+        const result = await gatherContextNode(state)
         console.log(`[AI Runner] Completed gatherContext node for request ${requestId}, result:`, result)
         return result
       })
-      .addNode('plan', async (state, config) => {
+      .addNode('plan', async (state) => {
         console.log(`[AI Runner] Executing plan node for request ${requestId}, input state:`, state)
         await announceProgress(requestId, 'plan', 2, 4)
-        const result = await planNode(state, config)
+        const result = await planNode(state)
         console.log(`[AI Runner] Completed plan node for request ${requestId}, result:`, result)
         return result
       })
-      .addNode('resourceSearch', async (state, config) => {
+      .addNode('resourceSearch', async (state) => {
         console.log(`[AI Runner] Executing resourceSearch node for request ${requestId}, input state:`, state)
         await announceProgress(requestId, 'resourceSearch', 3, 4)
-        const result = await resourceSearchNode(state, config)
+        const result = await resourceSearchNode(state)
         console.log(`[AI Runner] Completed resourceSearch node for request ${requestId}, result:`, result)
         return result
       })
-      .addNode('build', async (state, config) => {
+      .addNode('build', async (state) => {
         console.log(`[AI Runner] Executing build node for request ${requestId}, input state:`, state)
         await announceProgress(requestId, 'build', 4, 4)
-        const result = await buildCurriculumNode(state, config)
+        const result = await buildCurriculumNode(state)
         console.log(`[AI Runner] Completed build node for request ${requestId}, result:`, result)
         return result
       })
