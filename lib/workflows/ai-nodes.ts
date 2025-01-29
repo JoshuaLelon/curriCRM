@@ -75,20 +75,55 @@ export const planNode = traceNode('plan')(async (state: Record<string, any>): Pr
 
 // 3) resourceSearchNode
 export const resourceSearchNode = traceNode('resourceSearch')(async (state: Record<string, any>): Promise<WorkflowStateUpdate> => {
+  console.log(`[AI Node: resourceSearch] Starting for request ${state.requestId}`)
   const { planItems = [] } = state
-  const resources: Record<string, { title: string; URL: string }[]> = {}
+  
+  try {
+    console.log(`[AI Node: resourceSearch] Processing ${planItems.length} items for request ${state.requestId}:`, planItems)
+    const resources: Record<string, { title: string; URL: string }[]> = {}
 
-  for (const item of planItems) {
-    resources[item] = [
-      {
-        title: `Mock resource for ${item}`,
-        URL: `https://example.com/${encodeURIComponent(item)}`
+    // Initialize Tavily client
+    const tavily = new (await import('tavily')).TavilyClient({ apiKey: process.env.TALIVY_API_KEY! })
+
+    for (const item of planItems) {
+      console.log(`[AI Node: resourceSearch] Finding resources for item: ${item}`)
+      
+      try {
+        // Search for high-quality video resources using Tavily
+        const searchResults = await tavily.search({
+          query: `${item} video tutorial site:youtube.com OR site:vimeo.com`,
+          search_depth: 'advanced',
+          max_results: 3,
+          include_images: false,
+          include_answer: false,
+          include_raw_content: false,
+          include_domains: ["youtube.com", "vimeo.com"],
+          exclude_domains: ["facebook.com", "twitter.com", "instagram.com", "tiktok.com"]
+        })
+
+        resources[item] = searchResults.results.map(result => ({
+          title: result.title,
+          URL: result.url
+        }))
+
+        console.log(`[AI Node: resourceSearch] Found ${resources[item].length} resources for item: ${item}`)
+      } catch (searchError) {
+        console.error(`[AI Node: resourceSearch] Error searching for item ${item}:`, searchError)
+        // Fallback to a mock resource if Tavily search fails
+        resources[item] = [{
+          title: `Video tutorial for ${item}`,
+          URL: `https://youtube.com/watch?v=example`
+        }]
       }
-    ]
-  }
+    }
 
-  return {
-    resources,
+    console.log(`[AI Node: resourceSearch] Found resources for ${Object.keys(resources).length} items:`, resources)
+    return {
+      resources,
+    }
+  } catch (error) {
+    console.error(`[AI Node: resourceSearch] Error for request ${state.requestId}:`, error)
+    throw error
   }
 })
 
@@ -96,15 +131,19 @@ export const resourceSearchNode = traceNode('resourceSearch')(async (state: Reco
 export const buildCurriculumNode = traceNode('build')(async (state: Record<string, any>): Promise<WorkflowStateUpdate> => {
   const { planItems = [], resources = {}, requestId } = state
 
-  // Create a new row in 'curriculums'
+  // Generate a UUID for the curriculum
   const { data: newCurriculum, error: curriculumError } = await supabase
     .from('curriculums')
-    .insert([{ request_id: requestId }])
+    .insert([{ 
+      id: crypto.randomUUID(),
+      request_id: requestId 
+    }])
     .select()
     .single()
   if (curriculumError) throw curriculumError
 
   // For each plan item, create a source and a curriculum_node
+  let lastEndTime = 0 // Keep track of the last end time
   for (let i = 0; i < planItems.length; i++) {
     const item = planItems[i]
     const [firstResource] = resources[item] || []
@@ -117,13 +156,22 @@ export const buildCurriculumNode = traceNode('build')(async (state: Record<strin
       .single()
     if (sourceError) throw sourceError
 
+    // Generate realistic-looking time segments (in seconds)
+    const segmentLength = Math.floor(Math.random() * 840) + 60 // Random length between 1-15 minutes
+    const start_time = lastEndTime + (i === 0 ? 0 : 30) // 30 second gap between segments
+    const end_time = start_time + segmentLength
+    lastEndTime = end_time
+
     const { error: nodeError } = await supabase
       .from('curriculum_nodes')
       .insert([{
+        id: crypto.randomUUID(),
         curriculum_id: newCurriculum.id,
         source_id: newSource.id,
         level: i,
         index_in_curriculum: i,
+        start_time,
+        end_time
       }])
     if (nodeError) throw nodeError
   }

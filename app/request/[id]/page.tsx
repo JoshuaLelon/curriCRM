@@ -219,9 +219,19 @@ export default function RequestPage({ params }: { params: { id: string } }) {
       console.log('[Request Page] Current user:', currentUser)
       console.log('[Request Page] Request:', request)
       
+      const isSelfAssigningAdmin = expertId && currentUser?.role === 'admin' && expertId === currentUser.id
+      console.log('[Request Page] Checking AI workflow trigger:', {
+        expertId,
+        currentUserRole: currentUser?.role,
+        currentUserId: currentUser?.id,
+        isSelfAssigningAdmin,
+        requestId: request.id
+      })
+
       const updates = {
         expert_id: expertId || null,
-        accepted_at: expertId ? new Date().toISOString() : null
+        accepted_at: expertId ? new Date().toISOString() : null,
+        started_at: isSelfAssigningAdmin ? new Date().toISOString() : null
       }
 
       console.log('[Request Page] Updating request with:', updates)
@@ -240,15 +250,6 @@ export default function RequestPage({ params }: { params: { id: string } }) {
       console.log('[Request Page] Update successful:', updateData)
 
       // If self-assigning as admin, trigger AI workflow
-      const isSelfAssigningAdmin = expertId && currentUser?.role === 'admin' && expertId === currentUser.id
-      console.log('[Request Page] Checking AI workflow trigger:', {
-        expertId,
-        currentUserRole: currentUser?.role,
-        currentUserId: currentUser?.id,
-        isSelfAssigningAdmin,
-        requestId: request.id
-      })
-
       if (isSelfAssigningAdmin) {
         console.log('[Request Page] Self-assigned as admin, triggering AI workflow')
         

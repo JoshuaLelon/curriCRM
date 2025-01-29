@@ -113,7 +113,8 @@ export default function AdminHome({ requests: initialRequests, experts: initialE
         { expert_id: null, accepted_at: null } : 
         { 
           expert_id: isAIAssignment ? adminProfile.id : experts.find((e) => e.user_id === expertId)?.id,
-          accepted_at: isAIAssignment ? new Date().toISOString() : null
+          accepted_at: isAIAssignment ? new Date().toISOString() : null,
+          started_at: isAIAssignment ? new Date().toISOString() : null
         }
 
       console.log('Found expert data:', { updateData, experts, expertId, isAIAssignment })

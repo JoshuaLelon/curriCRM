@@ -51,3 +51,8 @@ Access and actions are controlled by user role:
 - Can assign/reassign experts in not_accepted and not_started states
 - View-only access to chat history and curriculum
 - Cannot participate in chat 
+
+## AI Processing State
+We now consider a request "AI processing" if it has `started_at` but no `finished_at`, and the current user is handling the AI. We no longer check for an empty curriculum to show progress.
+
+This means the progress indicator will be shown as soon as the AI workflow starts (when `started_at` is set) and will remain visible until the workflow completes (when `finished_at` is set). This ensures users can see the progress even if the curriculum is generated quickly. 

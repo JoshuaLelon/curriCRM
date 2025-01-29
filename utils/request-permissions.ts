@@ -16,9 +16,36 @@ export function canDeleteRequest(request: Request, user: User): boolean {
 }
 
 export function isAIHandledRequest(request: Request, user: User): boolean {
-  if (user.role !== "admin") return false
-  const userId = typeof user.id === 'string' ? parseInt(user.id) : user.id
-  return request.expert_id === userId
+  console.log('[Permissions] isAIHandledRequest check:', {
+    request: {
+      id: request.id,
+      expert_id: request.expert_id,
+      accepted_at: request.accepted_at,
+      started_at: request.started_at,
+      finished_at: request.finished_at
+    },
+    user: {
+      id: user.id,
+      role: user.role
+    }
+  })
+
+  if (user.role !== "admin") {
+    console.log('[Permissions] Not an admin')
+    return false
+  }
+
+  // Convert both IDs to strings for comparison
+  const userId = user.id?.toString()
+  const expertId = request.expert_id?.toString()
+  
+  console.log('[Permissions] Assignment check:', {
+    userId,
+    expertId,
+    isAssignedToUser: userId === expertId
+  })
+
+  return userId === expertId
 }
 
 export function canEditCurriculum(request: Request, user: User): boolean {

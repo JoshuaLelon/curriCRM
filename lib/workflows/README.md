@@ -90,4 +90,18 @@ The workflow interacts with the following tables:
 - `curriculum_nodes`: Stores curriculum structure
 - `sources`: Stores learning resources
 
-See the database migrations for detailed schema information. 
+See the database migrations for detailed schema information.
+
+## Realtime Channel Persistence
+
+We removed the auto-cleanup (removeChannel) so that the client can subscribe to progress updates more reliably. This prevents the channel from closing before the UI can receive each broadcast.
+
+The channel will remain open during the entire workflow process, allowing the frontend to:
+1. Subscribe to the channel when the component mounts
+2. Receive all progress updates as they happen
+3. Show the progress indicator for each stage
+
+The channel is automatically cleaned up when:
+- The workflow completes
+- The component unmounts
+- The client disconnects 
