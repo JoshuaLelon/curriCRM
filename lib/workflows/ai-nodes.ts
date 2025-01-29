@@ -22,7 +22,7 @@ export const gatherContextNode = traceNode('gatherContext')(async (state: Record
     }
 
     // Validate required fields
-    const requiredFields = ['tag', 'description', 'level']
+    const requiredFields = ['tag']
     const missingFields = requiredFields.filter(field => !data[field])
     if (missingFields.length > 0) {
       throw new Error(`Request is missing required fields: ${missingFields.join(', ')}`)

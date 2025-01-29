@@ -1,0 +1,36 @@
+timestamp,request_id,tag,level,total_duration_ms,gather_context_ms,plan_ms,resource_search_ms,build_ms,num_plan_items,success 2025-01-29T22:33:21.884Z,39355e9a-7c26-449a-bc6a-7784c7d64927,"Web Development",beginner,4981,471,1510,325,681,18,true
+2025-01-29T22:33:22.123Z,39355e9a-7c26-449a-bc6a-7784c7d64927,"Web Development",beginner,6869,0,0,0,0,18,true
+2025-01-29T22:33:27.622Z,39ee9b0a-d2de-4006-9864-69ff303e3ebb,"Machine Learning",advanced,5002,610,2211,422,220,24,true
+2025-01-29T22:33:27.955Z,39ee9b0a-d2de-4006-9864-69ff303e3ebb,"Machine Learning",advanced,5828,0,0,0,0,24,true
+2025-01-29T22:33:33.857Z,467597fd-6f6a-428d-b7fb-899fd2f1675b,"Python",beginner,5147,860,1663,248,579,14,true
+2025-01-29T22:33:34.045Z,467597fd-6f6a-428d-b7fb-899fd2f1675b,"Python",beginner,6085,0,0,0,0,14,true
+2025-01-29T22:33:40.054Z,b024ae87-bc30-45a4-bbb3-0d3517a8bf3c,"System Design",advanced,5544,998,1715,173,445,10,true
+2025-01-29T22:33:40.387Z,b024ae87-bc30-45a4-bbb3-0d3517a8bf3c,"System Design",advanced,6332,0,0,0,0,10,true
+2025-01-29T22:33:45.098Z,71ae8d3c-ff1f-4117-a4b6-b2521afe8340,"C++",intermediate,4150,444,1750,184,250,15,true
+2025-01-29T22:33:45.271Z,71ae8d3c-ff1f-4117-a4b6-b2521afe8340,"C++",intermediate,4879,0,0,0,0,15,true
+2025-01-29T22:33:52.799Z,f84d3a13-b852-4f00-b598-5eeec0df6609,"Data Science",beginner,7109,1993,1900,160,308,15,true
+2025-01-29T22:33:53.896Z,f84d3a13-b852-4f00-b598-5eeec0df6609,"Data Science",beginner,8620,0,0,0,0,15,true
+2025-01-29T22:33:58.586Z,6833aa0f-0cb3-4556-9623-0573cb2873b4,"Data Science",intermediate,4252,361,1326,207,408,15,true
+2025-01-29T22:33:58.801Z,6833aa0f-0cb3-4556-9623-0573cb2873b4,"Data Science",intermediate,4899,0,0,0,0,15,true
+2025-01-29T22:34:03.421Z,815ef98e-62ad-4863-aa51-d8dd576ade30,"Mobile Development",beginner,4129,239,1791,525,428,10,true
+2025-01-29T22:34:03.642Z,815ef98e-62ad-4863-aa51-d8dd576ade30,"Mobile Development",beginner,4835,0,0,0,0,10,true
+2025-01-29T22:34:11.191Z,2cee9eae-f13d-42b1-9d3f-cfae4d3181f3,"DevOps",intermediate,6520,554,2424,830,920,12,true
+2025-01-29T22:34:11.799Z,2cee9eae-f13d-42b1-9d3f-cfae4d3181f3,"DevOps",intermediate,8153,0,0,0,0,12,true
+2025-01-29T22:34:17.755Z,fd58bfd4-6dd0-4507-a0ca-506c54492142,"Full Stack",intermediate,5509,555,1631,593,420,12,true
+2025-01-29T22:34:17.976Z,fd58bfd4-6dd0-4507-a0ca-506c54492142,"Full Stack",intermediate,6085,0,0,0,0,12,true
+2025-01-29T22:34:23.302Z,9379d24a-aefc-47b8-9ff2-f6c28582425b,"Blockchain",advanced,4515,855,1233,299,425,10,true
+2025-01-29T22:34:23.522Z,9379d24a-aefc-47b8-9ff2-f6c28582425b,"Blockchain",advanced,5542,0,0,0,0,10,true
+2025-01-29T22:34:28.573Z,2f5d7938-a42b-4c67-a62f-0e9353ac1b3b,"Game Development",intermediate,3945,710,1121,180,399,11,true
+2025-01-29T22:34:28.762Z,2f5d7938-a42b-4c67-a62f-0e9353ac1b3b,"Game Development",intermediate,5237,0,0,0,0,11,true
+2025-01-29T22:34:32.204Z,8fc80734-101f-4031-b054-7c403ee5f56d,"Cybersecurity",advanced,3040,415,1058,211,305,10,true
+2025-01-29T22:34:33.685Z,8fc80734-101f-4031-b054-7c403ee5f56d,"Cybersecurity",advanced,4915,0,0,0,0,10,true
+2025-01-29T22:34:40.501Z,bfa1f356-c4b6-4d88-81a5-0a7e0dbeaf17,"Cloud",advanced,6127,353,1192,990,210,12,true
+2025-01-29T22:34:40.766Z,bfa1f356-c4b6-4d88-81a5-0a7e0dbeaf17,"Cloud",advanced,7076,0,0,0,0,12,true
+2025-01-29T22:34:46.242Z,6c6bf6bb-f0a3-4c32-83c3-e2883273a975,"Big Data",advanced,3757,188,1358,372,682,10,true
+2025-01-29T22:34:46.633Z,6c6bf6bb-f0a3-4c32-83c3-e2883273a975,"Big Data",advanced,5863,0,0,0,0,10,true
+2025-01-29T22:34:52.312Z,ca928578-e3b6-478c-8a09-72cd49b17136,"AI",advanced,4405,269,1480,1299,224,10,true
+2025-01-29T22:34:53.473Z,ca928578-e3b6-478c-8a09-72cd49b17136,"AI",advanced,6835,0,0,0,0,10,true
+2025-01-29T22:35:00.105Z,342014bb-9fdf-43e8-8c0c-321e53b969b1,"UI/UX",intermediate,6165,800,2224,204,308,15,true
+2025-01-29T22:35:00.646Z,342014bb-9fdf-43e8-8c0c-321e53b969b1,"UI/UX",intermediate,7166,0,0,0,0,15,true
+2025-01-29T22:51:21.314Z,,"",,1168,434,0,0,0,0,false
+2025-01-29T22:54:21.290Z,,"",,4113,589,1407,292,353,0,false

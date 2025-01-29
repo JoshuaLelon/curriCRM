@@ -10,10 +10,11 @@ import { v4 as uuidv4 } from 'uuid'
 import { client as langsmith } from '@/lib/langsmith'
 import type { Run } from 'langsmith/schemas'
 import type { RunCreate, RunUpdate } from 'langsmith/schemas'
-import { runAIWorkflow } from '@/lib/workflows/ai-runner'
+import { runAIWorkflow, WorkflowResult } from '../../lib/workflows/ai-runner'
 import { supabase } from '@/lib/supabase'
 import { PostgrestSingleResponse } from '@supabase/supabase-js'
 import { WorkflowState } from '@/lib/workflows/types'
+import { trackWorkflowMetrics } from '@/lib/metrics/track-metrics'
 
 /**
  * Type Definitions
@@ -316,9 +317,8 @@ describe('AI Workflow Tests', () => {
   ]
 
   for (const testCase of testCases) {
-    // Only run the first test case
-    const testFn = testCase === testCases[0] ? test.only : test
-    testFn(testCase.name, async () => {
+    // Run all test cases instead of just the first one
+    test(testCase.name, async () => {
       console.log('Running test:', testCase.name)
       console.log('LangSmith config:', {
         apiUrl: process.env.LANGSMITH_ENDPOINT,
@@ -448,8 +448,18 @@ describe('AI Workflow Tests', () => {
           })
         }
 
+        // Test passed - record success
+        await trackWorkflowMetrics({
+          success: true,
+          totalDuration: Date.now() - startTime,
+          nodeTimings: result.__metrics.nodeTimings,
+          requestId: mockRequest.id,
+          context: testCase.input,
+          planItems: result.planItems
+        })
+
       } catch (error) {
-        // Update run with error
+        // Update run with error and record failure
         await langsmith.updateRun(runId, {
           end_time: Date.now(),
           error: String(error),
@@ -457,6 +467,17 @@ describe('AI Workflow Tests', () => {
             success: false
           }
         })
+
+        // Record failure in metrics
+        await trackWorkflowMetrics({
+          success: false,
+          totalDuration: Date.now() - startTime,
+          nodeTimings: {},
+          requestId: mockRequest.id,
+          context: testCase.input,
+          planItems: []
+        })
+
         throw error
       }
     })

@@ -18,7 +18,21 @@ const WorkflowAnnotation = Annotation.Root({
   __metrics: Annotation<WorkflowMetrics>()
 })
 
-export async function runAIWorkflow(requestId: string) {
+export interface WorkflowResult {
+  __metrics: {
+    nodeTimings: Record<string, { start: number; end?: number; runId?: string }>
+    startTime: number
+    requestId: string
+    projectName: string
+    parentRunId?: string
+  }
+  context?: any
+  planItems?: string[]
+  resources?: Record<string, { title: string; url: string }[]>
+  success: boolean
+}
+
+export async function runAIWorkflow(requestId: string): Promise<WorkflowResult> {
   // Initialize metrics
   const metrics = new WorkflowMetrics(requestId)
   await metrics.initializeParentRun()
@@ -61,6 +75,19 @@ export async function runAIWorkflow(requestId: string) {
 
     // 5) Log final metrics
     await metrics.logMetrics(true, result)
+
+    // 6) Return the final state
+    return {
+      ...result,
+      __metrics: {
+        nodeTimings: metrics.getNodeTimings(),
+        startTime: metrics.getStartTime(),
+        requestId: metrics.getRequestId(),
+        projectName: metrics.getProjectName(),
+        parentRunId: metrics.getParentRunId()
+      },
+      success: true
+    }
   } catch (error) {
     console.error('Workflow error:', error)
     await metrics.logMetrics(false, { error: String(error) })

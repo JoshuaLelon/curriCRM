@@ -8,4 +8,4 @@ alter table auth.users
 
 update auth.users
 set email_change = ''
-where email_change is null; 
+where email_change is null;

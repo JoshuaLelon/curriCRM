@@ -2,6 +2,7 @@ import { Client } from 'langsmith'
 import type { RunnableConfig } from "@langchain/core/runnables"
 import type { Run, RunCreate, RunUpdate } from 'langsmith/schemas'
 import { v4 as uuidv4 } from 'uuid'
+import { trackWorkflowMetrics } from './metrics/track-metrics'
 
 // Create LangSmith client as a singleton
 export const client = new Client({
@@ -34,6 +35,27 @@ export class WorkflowMetrics {
     this.startTime = Date.now()
     this.requestId = requestId
     this.projectName = process.env.LANGSMITH_PROJECT || 'default'
+  }
+
+  // Add getter methods
+  getNodeTimings() {
+    return this.nodeTimings
+  }
+
+  getStartTime() {
+    return this.startTime
+  }
+
+  getRequestId() {
+    return this.requestId
+  }
+
+  getProjectName() {
+    return this.projectName
+  }
+
+  getParentRunId() {
+    return this.parentRunId
   }
 
   async initializeParentRun() {
@@ -136,26 +158,28 @@ export class WorkflowMetrics {
 
     try {
       const endTime = Date.now()
-
-      // Create the update with end time and outputs
-      const update: RunUpdate = {
-        end_time: endTime,
-        outputs: {
-          success,
-          totalDuration: this.getTotalDuration(),
-          nodeTimings: Object.entries(this.nodeTimings).reduce((acc, [nodeName, timing]) => {
-            acc[nodeName] = {
-              duration: timing.end ? timing.end - timing.start : undefined,
-              runId: timing.runId
-            }
-            return acc
-          }, {} as Record<string, { duration?: number; runId?: string }>),
-          ...finalOutputs
-        }
+      const metrics = {
+        success,
+        totalDuration: this.getTotalDuration(),
+        nodeTimings: Object.entries(this.nodeTimings).reduce((acc, [nodeName, timing]) => {
+          acc[nodeName] = {
+            duration: timing.end ? timing.end - timing.start : undefined,
+            runId: timing.runId
+          }
+          return acc
+        }, {} as Record<string, { duration?: number; runId?: string }>),
+        ...finalOutputs
       }
 
       // Update the parent run
-      await client.updateRun(this.parentRunId, update)
+      await client.updateRun(this.parentRunId, {
+        end_time: endTime,
+        outputs: metrics
+      })
+
+      // Track metrics in CSV
+      await trackWorkflowMetrics(metrics)
+
       console.log(`Updated parent run ${this.parentRunId} with final metrics`)
     } catch (error) {
       console.error('Error updating parent run with metrics:', error)
