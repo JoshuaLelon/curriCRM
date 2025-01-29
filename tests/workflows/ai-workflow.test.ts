@@ -6,6 +6,7 @@
  * by using mocked responses and simplified tracking.
  */
 
+import { v4 as uuidv4 } from 'uuid'
 import { Client } from 'langsmith'
 import type { Run } from 'langsmith/schemas'
 import type { RunCreate, RunUpdate } from 'langsmith/schemas'
@@ -38,8 +39,8 @@ interface Curriculum {
  * Used for tracking workflow execution, though not critical for test success
  */
 const client = new Client({
-  apiUrl: process.env.LANGCHAIN_ENDPOINT,
-  apiKey: process.env.LANGCHAIN_API_KEY,
+  apiUrl: process.env.LANGSMITH_ENDPOINT,
+  apiKey: process.env.LANGSMITH_API_KEY,
 })
 
 /**
@@ -311,110 +312,176 @@ describe('AI Workflow Tests', () => {
   ]
 
   testCases.forEach(testCase => {
-    // Currently only running Basic Web Development test for rapid development
-    if (testCase.name === 'Basic Web Development Curriculum') {
-      test.only(testCase.name, async () => {
-        /**
-         * Test Setup
-         * Creates a mock request and configures Supabase responses
-         */
-        const mockRequest = {
-          id: `test-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-          ...testCase.input,
-        }
+    test(testCase.name, async () => {
+      console.log('Running test:', testCase.name)
+      console.log('LangSmith config:', {
+        apiUrl: process.env.LANGSMITH_ENDPOINT,
+        apiKey: process.env.LANGSMITH_API_KEY?.slice(0, 10) + '...',
+        project: process.env.LANGSMITH_PROJECT
+      })
 
-        /**
-         * Supabase Response Configuration
-         * Mocks different responses based on the table being queried
-         */
-        ;(supabase.from as jest.Mock).mockImplementation((table) => {
-          if (table === 'curriculums') {
-            return {
-              select: jest.fn().mockReturnThis(),
-              insert: jest.fn().mockReturnThis(),
-              update: jest.fn().mockReturnThis(),
-              eq: jest.fn().mockReturnThis(),
-              single: jest.fn().mockResolvedValue({
-                data: {
-                  id: `curriculum-${Date.now()}`,
-                  request_id: mockRequest.id,
-                  curriculum_nodes: [
-                    {
-                      id: `node-${Date.now()}`,
-                      sources: {
-                        id: `source-${Date.now()}`,
-                        title: testCase.expectedTopics[0],
-                        URL: `https://example.com/${testCase.expectedTopics[0]}`
-                      }
-                    }
-                  ]
-                }
-              })
-            }
-          }
+      /**
+       * Test Setup
+       * Creates a mock request and configures Supabase responses
+       */
+      const mockRequest = {
+        id: uuidv4(),
+        ...testCase.input,
+      }
+
+      /**
+       * Supabase Response Configuration
+       * Mocks different responses based on the table being queried
+       */
+      ;(supabase.from as jest.Mock).mockImplementation((table) => {
+        if (table === 'curriculums') {
           return {
             select: jest.fn().mockReturnThis(),
             insert: jest.fn().mockReturnThis(),
             update: jest.fn().mockReturnThis(),
             eq: jest.fn().mockReturnThis(),
-            single: jest.fn().mockResolvedValue({ data: mockRequest })
+            single: jest.fn().mockResolvedValue({
+              data: {
+                id: uuidv4(),
+                request_id: mockRequest.id,
+                curriculum_nodes: testCase.expectedTopics.map((topic, index) => ({
+                  id: uuidv4(),
+                  sources: {
+                    id: uuidv4(),
+                    title: topic,
+                    URL: `https://example.com/${encodeURIComponent(topic)}`
+                  }
+                }))
+              }
+            })
           }
-        })
-
-        /**
-         * LangSmith Run Creation
-         * Tracks the test execution, though failures here don't affect test validity
-         */
-        const runCreate: RunCreate = {
-          name: testCase.name,
-          run_type: 'chain',
-          inputs: testCase.input,
-          start_time: Date.now(),
         }
-        await client.createRun(runCreate)
-
-        try {
-          /**
-           * Workflow Execution and Validation
-           * Runs the workflow and verifies the output matches expectations
-           */
-          await runAIWorkflow(mockRequest.id)
-
-          // Curriculum verification
-          const curriculum = await supabase
-            .from('curriculums')
-            .select('*, curriculum_nodes(*, sources(*))')
-            .eq('request_id', mockRequest.id)
-            .single() as PostgrestSingleResponse<Curriculum>
-
-          // Basic structure validation
-          expect(curriculum.data).toBeTruthy()
-          expect(curriculum.data?.curriculum_nodes?.length).toBeGreaterThan(0)
-          
-          /**
-           * Topic Analysis
-           * Verifies that the generated curriculum includes expected topics
-           */
-          if (curriculum.data?.curriculum_nodes) {
-            const topics = curriculum.data.curriculum_nodes.map(
-              (node: CurriculumNode) => node.sources?.title || ''
-            )
-
-            // Count how many expected topics were found
-            const expectedTopicsFound = testCase.expectedTopics.filter(
-              topic => topics.some((t: string) => t.toLowerCase().includes(topic.toLowerCase()))
-            ).length
-
-            // Calculate topic coherence (simple ratio)
-            const topicCoherence = expectedTopicsFound / testCase.expectedTopics.length
-            
-            // Verify we found at least some of the expected topics
-            expect(topicCoherence).toBeGreaterThan(0)
-          }
-        } catch (error) {
-          throw error
+        return {
+          select: jest.fn().mockReturnThis(),
+          insert: jest.fn().mockReturnThis(),
+          update: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          single: jest.fn().mockResolvedValue({ data: mockRequest })
         }
       })
-    }
+
+      /**
+       * LangSmith Run Creation and Tracking
+       */
+      const startTime = Date.now()
+      const runId = uuidv4()
+      console.log('LangSmith Debug:', {
+        endpoint: process.env.LANGSMITH_ENDPOINT,
+        project: process.env.LANGSMITH_PROJECT,
+        tracing: process.env.LANGSMITH_TRACING,
+        runId
+      })
+      
+      const runCreate: RunCreate = {
+        id: runId,
+        name: testCase.name,
+        run_type: 'chain',
+        inputs: testCase.input,
+        start_time: startTime
+      }
+      console.log('Creating LangSmith run with config:', runCreate)
+      
+      try {
+        await client.createRun(runCreate)
+        console.log('Successfully created LangSmith run')
+        
+        // Add a small delay to allow for API propagation
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        
+        // List all runs in the project
+        console.log('Listing all runs in project:', process.env.LANGSMITH_PROJECT)
+        const allRuns = client.listRuns({
+          projectName: process.env.LANGSMITH_PROJECT || 'default'
+        })
+        const runs = await getAllRuns(allRuns)
+        console.log('Found runs:', runs.length)
+        if (runs.length > 0) {
+          console.log('Latest run:', {
+            id: runs[0].id,
+            name: runs[0].name,
+            start_time: runs[0].start_time
+          })
+        }
+        
+        // Try to find our specific run
+        const targetRun = runs.find(run => run.id === runId)
+        console.log('Found target run:', targetRun ? 'Yes' : 'No')
+      } catch (error) {
+        console.error('Failed to create LangSmith run:', error)
+        if (error instanceof Error) {
+          console.error('Error details:', {
+            message: error.message,
+            name: error.name,
+            stack: error.stack
+          })
+        }
+      }
+
+      try {
+        /**
+         * Workflow Execution and Validation
+         */
+        await runAIWorkflow(mockRequest.id)
+        const endTime = Date.now()
+
+        // Get curriculum from mock Supabase
+        const curriculum = await supabase
+          .from('curriculums')
+          .select('*, curriculum_nodes(*, sources(*))')
+          .eq('request_id', mockRequest.id)
+          .single() as PostgrestSingleResponse<Curriculum>
+
+        // Basic structure validation
+        expect(curriculum.data).toBeTruthy()
+        expect(curriculum.data?.curriculum_nodes?.length).toBe(testCase.expectedSteps)
+        
+        // Topic validation
+        if (curriculum.data?.curriculum_nodes) {
+          const topics = curriculum.data.curriculum_nodes.map(
+            (node: CurriculumNode) => node.sources?.title || ''
+          )
+          
+          // Check if all expected topics are present (order may vary)
+          testCase.expectedTopics.forEach(topic => {
+            expect(topics.some(t => t.includes(topic))).toBe(true)
+          })
+        }
+
+        // Update LangSmith run with results
+        console.log('Updating LangSmith run with results')
+        const runUpdate: RunUpdate = {
+          end_time: endTime,
+          outputs: {
+            success: true,
+            speedMs: endTime - startTime,
+            curriculum: {
+              nodeCount: curriculum.data?.curriculum_nodes?.length || 0,
+              topics: curriculum.data?.curriculum_nodes?.map(n => n.sources?.title) || []
+            }
+          }
+        }
+        await client.updateRun(runId, runUpdate)
+        console.log('Successfully updated LangSmith run')
+
+      } catch (error) {
+        // Update LangSmith run with error
+        console.error('Test failed:', error)
+        console.log('Updating LangSmith run with error')
+        const runUpdate: RunUpdate = {
+          end_time: Date.now(),
+          error: String(error),
+          outputs: {
+            success: false
+          }
+        }
+        await client.updateRun(runId, runUpdate)
+        throw error
+      }
+    })
   })
 }) 

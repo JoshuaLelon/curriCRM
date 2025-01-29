@@ -4,12 +4,14 @@ import './load-env'
 import { supabase } from '@/lib/supabase'
 import { client } from '@/lib/langsmith'
 import { runAIWorkflow } from '@/lib/workflows/ai-runner'
+import { Run } from 'langsmith'
 
 interface EvaluationResult {
   requestId: string
   speedMs: number
   accuracyScore: number // 0-1 scale
   error?: string
+  nodeTimings?: Record<string, { startTime: number; endTime?: number; duration?: number }>
 }
 
 async function evaluateRequest(requestId: string): Promise<EvaluationResult> {
@@ -20,32 +22,31 @@ async function evaluateRequest(requestId: string): Promise<EvaluationResult> {
     await runAIWorkflow(requestId)
     
     // Get the run from LangSmith
-    const runsIterator = client.listRuns({
+    const runsIterator = await client.listRuns({
       filter: `name LIKE workflow_${requestId}%`,
       limit: 1
     })
     
     // Get first run
-    const firstRun = await runsIterator[Symbol.asyncIterator]().next()
-    if (!firstRun.value) {
-      throw new Error('No LangSmith run found')
+    for await (const run of runsIterator) {
+      const endTime = Date.now()
+      
+      // Calculate metrics
+      const speedMs = endTime - startTime
+      
+      // For now, we'll use a simple accuracy score based on whether all nodes completed
+      // In a production system, this would be replaced with human evaluation
+      const accuracyScore = run.outputs?.success ? 1 : 0
+      
+      return {
+        requestId,
+        speedMs,
+        accuracyScore,
+        nodeTimings: run.outputs?.nodeTimings
+      }
     }
     
-    const run = firstRun.value
-    const endTime = Date.now()
-    
-    // Calculate metrics
-    const speedMs = endTime - startTime
-    
-    // For now, we'll use a simple accuracy score based on whether all nodes completed
-    // In a production system, this would be replaced with human evaluation
-    const accuracyScore = run.outputs?.success ? 1 : 0
-    
-    return {
-      requestId,
-      speedMs,
-      accuracyScore
-    }
+    throw new Error('No LangSmith run found')
   } catch (error) {
     return {
       requestId,
@@ -79,6 +80,14 @@ async function main() {
     
     console.log(`Speed: ${result.speedMs}ms`)
     console.log(`Accuracy: ${result.accuracyScore * 100}%`)
+    if (result.nodeTimings) {
+      console.log('Node timings:')
+      for (const [node, timing] of Object.entries(result.nodeTimings)) {
+        if (timing.duration) {
+          console.log(`  ${node}: ${timing.duration}ms`)
+        }
+      }
+    }
     if (result.error) {
       console.log(`Error: ${result.error}`)
     }
@@ -93,6 +102,27 @@ async function main() {
   console.log(`Average Speed: ${avgSpeed.toFixed(2)}ms`)
   console.log(`Average Accuracy: ${(avgAccuracy * 100).toFixed(2)}%`)
   console.log(`Error Rate: ${(errorRate * 100).toFixed(2)}%`)
+  
+  // Log final results to LangSmith
+  await client.createRun({
+    name: "evaluation_summary",
+    run_type: "eval",
+    inputs: {
+      totalCases: results.length
+    },
+    outputs: {
+      successRate: avgAccuracy,
+      avgSpeed,
+      errorRate,
+      results: results.map(r => ({
+        requestId: r.requestId,
+        speedMs: r.speedMs,
+        accuracyScore: r.accuracyScore,
+        nodeTimings: r.nodeTimings,
+        error: r.error
+      }))
+    }
+  })
 }
 
 main().catch(console.error) 

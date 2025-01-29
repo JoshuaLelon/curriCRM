@@ -3,8 +3,8 @@ import type { RunnableConfig } from "@langchain/core/runnables"
 
 // Create LangSmith client
 export const client = new Client({
-  apiUrl: process.env.LANGCHAIN_ENDPOINT,
-  apiKey: process.env.LANGCHAIN_API_KEY
+  apiUrl: process.env.LANGSMITH_ENDPOINT,
+  apiKey: process.env.LANGSMITH_API_KEY
 })
 
 // Interface for node timing metrics
@@ -54,7 +54,8 @@ export class WorkflowMetrics {
         success,
         totalDuration,
         nodeTimings: this.nodeTimings
-      }
+      },
+      project_name: process.env.LANGSMITH_PROJECT
     })
   }
 }

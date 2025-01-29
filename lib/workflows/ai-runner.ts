@@ -1,6 +1,7 @@
 import { StateGraph } from '@langchain/langgraph'
 import { supabase } from '@/lib/supabase'
 import { graphState, WorkflowState } from './types'
+import { WorkflowMetrics } from '@/lib/langsmith'
 import {
   gatherContextNode,
   planNode,
@@ -15,6 +16,9 @@ async function announceProgress(requestId: string, step: string, current: number
 
 export async function runAIWorkflow(requestId: string) {
   console.log(`[AI Runner] Starting workflow for request ${requestId}`)
+  
+  // Initialize workflow metrics
+  const metrics = new WorkflowMetrics(requestId)
   
   try {
     // Set started_at when workflow begins
@@ -79,12 +83,16 @@ export async function runAIWorkflow(requestId: string) {
       requestId,
       context: null,
       planItems: [],
-      resources: {}
+      resources: {},
+      __metrics: metrics // Pass metrics through state
     }
 
     try {
       const finalState = await graphApp.invoke(initialState);
       console.log(`[AI Runner] Workflow execution completed with final state:`, finalState);
+      
+      // Log successful completion metrics
+      await metrics.logMetrics(true)
       
       // Mark request as finished in the DB
       console.log(`[AI Runner] Marking request ${requestId} as finished`)
@@ -100,6 +108,8 @@ export async function runAIWorkflow(requestId: string) {
       
       console.log(`[AI Runner] Workflow completed successfully for request ${requestId}`)
     } catch (error) {
+      // Log failure metrics
+      await metrics.logMetrics(false)
       throw error
     }
   } catch (error) {
@@ -111,6 +121,8 @@ export async function runAIWorkflow(requestId: string) {
         stack: error.stack
       })
     }
+    // Log failure metrics
+    await metrics.logMetrics(false)
     throw error
   }
 } 
