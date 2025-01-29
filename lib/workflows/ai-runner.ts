@@ -21,6 +21,9 @@ export async function runAIWorkflow(requestId: string) {
   const metrics = new WorkflowMetrics(requestId)
   
   try {
+    // Initialize parent run in LangSmith
+    await metrics.initializeParentRun()
+    
     // Set started_at when workflow begins
     console.log(`[AI Runner] Setting started_at for request ${requestId}`)
     const { error: startError } = await supabase

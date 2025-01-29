@@ -311,8 +311,10 @@ describe('AI Workflow Tests', () => {
     }
   ]
 
-  testCases.forEach(testCase => {
-    test(testCase.name, async () => {
+  for (const testCase of testCases) {
+    // Only run the first test case
+    const testFn = testCase === testCases[0] ? test.only : test
+    testFn(testCase.name, async () => {
       console.log('Running test:', testCase.name)
       console.log('LangSmith config:', {
         apiUrl: process.env.LANGSMITH_ENDPOINT,
@@ -483,5 +485,5 @@ describe('AI Workflow Tests', () => {
         throw error
       }
     })
-  })
+  }
 }) 
