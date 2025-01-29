@@ -28,8 +28,8 @@
 
 - [x] Fix the fact that it doesn't create a tree when the request is finished.
 - [x] Make sure that the curriculum generated has  start / end times (they can be random)
-- [ ] Make it so that I can just assign the request to the AI and i can leave the page without having to wait for it to finish (if that isn't the case already)
-- [ ] make sure the curriculum table is sorted in order of curriculum index
+- [x] Make it so that I can just assign the request to the AI and i can leave the page without having to wait for it to finish (if that isn't the case already)
+- [x] make sure the curriculum table is sorted in order of curriculum index
 - [ ] implement 20 test cases according to the below specifications
   - [ ] figure out what that looks like for our application (e.g. what are the inputs and outputs? Annotate but for the javascript version?)
   - [ ] figure out how to leverage langsmith for this

@@ -29,8 +29,8 @@ interface EditableRowProps {
 function EditableRow({ node, onUpdateNode, onUpdateSource }: EditableRowProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState({
-    title: node.source.title,
-    URL: node.source.URL,
+    title: node.source?.title || "",
+    url: node.source?.url || "",
     startTime: node.start_time.toString(),
     endTime: node.end_time.toString(),
     level: node.level.toString(),
@@ -39,7 +39,7 @@ function EditableRow({ node, onUpdateNode, onUpdateSource }: EditableRowProps) {
   const handleSubmit = () => {
     onUpdateSource({
       title: formData.title,
-      URL: formData.URL,
+      url: formData.url,
     })
     onUpdateNode({
       start_time: parseInt(formData.startTime),
@@ -52,6 +52,7 @@ function EditableRow({ node, onUpdateNode, onUpdateSource }: EditableRowProps) {
   if (isEditing) {
     return (
       <TableRow>
+        <TableCell>{node.index_in_curriculum + 1}</TableCell>
         <TableCell>
           <Input
             value={formData.title}
@@ -60,8 +61,8 @@ function EditableRow({ node, onUpdateNode, onUpdateSource }: EditableRowProps) {
         </TableCell>
         <TableCell>
           <Input
-            value={formData.URL}
-            onChange={(e) => setFormData((prev) => ({ ...prev, URL: e.target.value }))}
+            value={formData.url}
+            onChange={(e) => setFormData((prev) => ({ ...prev, url: e.target.value }))}
           />
         </TableCell>
         <TableCell>
@@ -97,8 +98,9 @@ function EditableRow({ node, onUpdateNode, onUpdateSource }: EditableRowProps) {
 
   return (
     <TableRow>
-      <TableCell>{node.source.title}</TableCell>
-      <TableCell>{node.source.URL}</TableCell>
+      <TableCell>{node.index_in_curriculum + 1}</TableCell>
+      <TableCell>{node.source?.title || "Untitled"}</TableCell>
+      <TableCell>{node.source?.url || "No URL"}</TableCell>
       <TableCell>{node.start_time}</TableCell>
       <TableCell>{node.end_time}</TableCell>
       <TableCell>{node.level}</TableCell>
@@ -121,7 +123,9 @@ export default function CurriculumTable({
 }: CurriculumTableProps) {
   const canEdit = canEditCurriculum(request, currentUser)
   const canSubmit = canSubmitRequest(request, currentUser)
-  const nodes = request.curriculum?.curriculum_nodes || []
+  const nodes = [...(request.curriculum?.curriculum_nodes || [])].sort(
+    (a, b) => a.index_in_curriculum - b.index_in_curriculum
+  )
 
   return (
     <div className="space-y-4">
@@ -135,6 +139,7 @@ export default function CurriculumTable({
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>Item #</TableHead>
             <TableHead>Source</TableHead>
             <TableHead>URL</TableHead>
             <TableHead>Start Time</TableHead>
@@ -150,12 +155,13 @@ export default function CurriculumTable({
                 key={node.id}
                 node={node}
                 onUpdateNode={(updates) => onUpdateNode?.(node.id, updates)}
-                onUpdateSource={(updates) => onUpdateSource?.(node.source.id, updates)}
+                onUpdateSource={(updates) => node.source && onUpdateSource?.(node.source.id, updates)}
               />
             ) : (
               <TableRow key={node.id}>
-                <TableCell>{node.source.title}</TableCell>
-                <TableCell>{node.source.URL}</TableCell>
+                <TableCell>{node.index_in_curriculum + 1}</TableCell>
+                <TableCell>{node.source?.title || "Untitled"}</TableCell>
+                <TableCell>{node.source?.url || "No URL"}</TableCell>
                 <TableCell>{node.start_time}</TableCell>
                 <TableCell>{node.end_time}</TableCell>
                 <TableCell>{node.level}</TableCell>

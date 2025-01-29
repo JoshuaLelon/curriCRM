@@ -8,13 +8,8 @@ interface CurriculumViewTableProps {
 }
 
 export default function CurriculumViewTable({ nodes }: CurriculumViewTableProps) {
-  // Sort nodes by level first, then by index within each level
-  const sortedNodes = [...nodes].sort((a, b) => {
-    if (a.level !== b.level) {
-      return a.level - b.level
-    }
-    return a.index_in_curriculum - b.index_in_curriculum
-  })
+  // Sort nodes by index_in_curriculum only to match tree structure
+  const sortedNodes = [...nodes].sort((a, b) => a.index_in_curriculum - b.index_in_curriculum)
 
   return (
     <div className="space-y-4">
@@ -23,6 +18,7 @@ export default function CurriculumViewTable({ nodes }: CurriculumViewTableProps)
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>Item #</TableHead>
             <TableHead>Source</TableHead>
             <TableHead>URL</TableHead>
             <TableHead>Start Time</TableHead>
@@ -33,16 +29,17 @@ export default function CurriculumViewTable({ nodes }: CurriculumViewTableProps)
         <TableBody>
           {sortedNodes.map((node) => (
             <TableRow key={node.id}>
+              <TableCell>{node.index_in_curriculum + 1}</TableCell>
               <TableCell>{node.source?.title || "Untitled"}</TableCell>
               <TableCell>
-                {node.source?.URL ? (
+                {node.source?.url ? (
                   <a
-                    href={node.source.URL}
+                    href={node.source.url}
                     className="text-blue-600 hover:underline"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    {node.source.URL}
+                    {node.source.url}
                   </a>
                 ) : (
                   "No URL"
