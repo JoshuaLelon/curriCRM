@@ -1,6 +1,86 @@
 # Master Implementation Checklist
 
-## Checklist Overview
+## New Checklist Overview
+
+- [x] Fix the lack of edges bug. Context:
+
+```
+[React Flow]: Couldn't create edge for source handle id: "undefined", edge id: aa681a8f-9c4a-4d85-8b46-d1f14cbe7b9a-d1e552c9-7a17-4b9b-a228-1d89cfe9a5f3. Help: https://reactflow.dev/error#008 Error Component Stack
+    at div (<anonymous>)
+    at div (<anonymous>)
+    at div (<anonymous>)
+    at div (<anonymous>)
+    at div (<anonymous>)
+    at CurriculumTree (curriculum-tree.tsx:36:42)
+    at div (<anonymous>)
+    at div (<anonymous>)
+    at CurriculumView (curriculum-view.tsx:11:42)
+    at div (<anonymous>)
+    at AdminView (admin-view.tsx:22:3)
+    at div (<anonymous>)
+    at div (<anonymous>)
+    at RequestPage (page.tsx:20:39)
+    at SupabaseProvider (supabase-provider.tsx:20:36)
+    at body (<anonymous>)
+    at html (<anonymous>)
+    at RootLayout [Server] (<anonymous>)
+```
+
+- [x] Fix the fact that it doesn't create a tree when the request is finished.
+- [x] Make sure that the curriculum generated has  start / end times (they can be random)
+- [ ] Make it so that I can just assign the request to the AI and i can leave the page without having to wait for it to finish (if that isn't the case already)
+- [ ] make sure the curriculum table is sorted in order of curriculum index
+- [ ] implement 20 test cases according to the below specifications
+  - [ ] figure out what that looks like for our application (e.g. what are the inputs and outputs? Annotate but for the javascript version?)
+  - [ ] figure out how to leverage langsmith for this
+  - [ ] figure out what the right tests look like
+  - [ ] implement the test cases
+
+```
+Agent Accuracy Metrics
+
+
+To pass Week 2, you must track any 2 of the following metrics and showcase their evaluation process on LangSmith/LangFuse in your walkthrough video: 
+
+
+- Success rate at identifying the correct action
+-Accuracy of field updates
+-Speed of response
+-Error rates and types
+
+
+If for any reason, you need to use a custom metric that better matches your AI features, feel free to. If you are unsure on what that custom metric might be, reach out to staff for assistance. 
+
+How to approach manual accuracy evaluation in your CRM applications: 
+
+- Document 20-30 common requests you'd actually make to your CRM system. Make sure to include both simple tasks ("update this grade") and complex ones ("draft a progress report based on the last three assessments").
+- For each request in your test dataset, document the expected outcome. 
+  - What exact changes should appear in the database?
+  - Which fields should be modified?
+  - What should the response look like?
+  - Any specific formatting or content requirements?
+- Create structured test cases:
+  - Input: The user's request
+  - Expected Output: The specific changes that should occur
+  - Context: Any additional information needed
+  - Success Criteria: How to determine if the action was correct, probably human-driven for this project
+- Set up LangSmith/LangFuse for monitoring:
+  - Create a new project for your CRM features
+  - Set up traces to track each request
+  - Enable detailed logging of inputs/outputs
+- Manually run systematic tests:
+  - Test each case multiple times
+  - Vary the phrasing slightly
+  - Test with different contexts
+  - Document any failures or unexpected behaviors
+- Track key metrics manually:
+  - Success rate at identifying the correct action
+  - Accuracy of field updates
+  - Speed of response
+  - Error rates and types
+```
+
+## Previous Checklist Overview
 
 ### 1. Set Up Environment Variables & Project Context
 - [x] Confirm you have the necessary environment variables (e.g., `OPENAI_API_KEY`).
@@ -391,10 +471,13 @@ Be sure to keep the project's README files updated with references and usage exa
 2. Implementing Worker Node Functions (Checklist item 6)
    - First attempt: Successfully implemented all node functions with proper error handling and type safety
    - Result: Success - all nodes working as expected with proper state management and database integration
-   - Verification: Confirmed through code review that all requirements are met:
-     - All node functions implemented
-     - Proper error handling
-     - Database integration
-     - LangChain integration
-     - Type safety with TypeScript
-     - UUID generation for database inserts
+   - Verification: Confirmed through code review that all requirements are met
+
+3. Fixing lack of edges bug (Checklist item 1)
+   - First attempt: Added source and target handle IDs to edges and custom div elements for handles
+   - Second attempt: Replaced custom div handles with proper React Flow Handle components
+   - Fix: 
+     - Added Handle component from React Flow
+     - Added source and target handles to CustomNode component with proper positioning
+     - Added sourceHandle and targetHandle IDs to edge definitions
+   - Result: Success - edges now render correctly between nodes in the curriculum tree

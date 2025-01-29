@@ -182,15 +182,33 @@ export const buildCurriculumNode: NodeFunction = async (state) => {
     }
 
     // Then create all nodes with the correct source IDs
-    const nodes = planItems.map((item, index) => ({
-      id: crypto.randomUUID(),
-      curriculum_id: curriculum.id,
-      source_id: sourceIds[index],
-      level: index,
-      index_in_curriculum: index,
-      start_time: 0,
-      end_time: 0
-    }))
+    let lastEndTime = 0 // Keep track of the last end time
+    const nodes = planItems.map((item, index) => {
+      // Create a tree-like structure:
+      // - Every third item starts a new top-level branch (level 0)
+      // - Other items are nested under the previous item
+      const level = index === 0 || index % 3 === 0 
+        ? 0 // Start a new top-level branch
+        : Math.min(2, (index % 3)) // Nest under previous item, max depth of 2
+
+      // Generate realistic-looking time segments (in seconds)
+      const segmentLength = Math.floor(Math.random() * 840) + 60 // Random length between 1-15 minutes
+      const start_time = lastEndTime + (index === 0 ? 0 : 30) // 30 second gap between segments
+      const end_time = start_time + segmentLength
+      
+      // Update lastEndTime for the next iteration
+      lastEndTime = end_time
+
+      return {
+        id: crypto.randomUUID(),
+        curriculum_id: curriculum.id,
+        source_id: sourceIds[index],
+        level,
+        index_in_curriculum: index,
+        start_time,
+        end_time
+      }
+    })
 
     console.log(`[AI Node: buildCurriculum] Creating ${nodes.length} curriculum nodes for curriculum ${curriculum.id}:`, nodes)
     

@@ -103,7 +103,28 @@ select * from (values
   ('00000000-0000-0000-0000-000000000015'::uuid, 'Representation Theory', 'https://en.wikipedia.org/wiki/Representation_theory', expert_profile_id),
   ('00000000-0000-0000-0000-000000000016'::uuid, 'Vector Space Representations', 'https://www.youtube.com/watch?v=mH0oCDa74tE', expert_profile_id),
   ('00000000-0000-0000-0000-000000000017'::uuid, 'Dimension and Basis', 'https://www.youtube.com/watch?v=P2LTAUO1TdA', expert_profile_id),
-  ('00000000-0000-0000-0000-000000000018'::uuid, 'Homomorphisms in Vector Spaces', 'https://www.youtube.com/watch?v=13r9QY6cmjc', expert_profile_id)
+  ('00000000-0000-0000-0000-000000000018'::uuid, 'Homomorphisms in Vector Spaces', 'https://www.youtube.com/watch?v=13r9QY6cmjc', expert_profile_id),
+  -- New 20 new unique YouTube sources if they don't exist
+  ('00000000-0000-0000-0000-000000000021'::uuid, 'Advanced React State Management', 'https://www.youtube.com/watch?v=someUniqueVideo1', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000022'::uuid, 'Node.js Cluster Mode Intro', 'https://www.youtube.com/watch?v=someUniqueVideo2', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000023'::uuid, 'Tailwind CSS Tips & Tricks', 'https://www.youtube.com/watch?v=someUniqueVideo3', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000024'::uuid, 'Next.js 13 App Router Overview', 'https://www.youtube.com/watch?v=someUniqueVideo4', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000025'::uuid, 'Shadcn UI Components Setup', 'https://www.youtube.com/watch?v=someUniqueVideo5', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000026'::uuid, 'Radix UI Deep Dive', 'https://www.youtube.com/watch?v=someUniqueVideo6', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000027'::uuid, 'AWS S3 Bucket Best Practices', 'https://www.youtube.com/watch?v=someUniqueVideo7', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000028'::uuid, 'Lambda Functions 101', 'https://www.youtube.com/watch?v=someUniqueVideo8', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000029'::uuid, 'DynamoDB Design Patterns', 'https://www.youtube.com/watch?v=someUniqueVideo9', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000030'::uuid, 'Server Components vs. Client Components', 'https://www.youtube.com/watch?v=someUniqueVideo10', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000031'::uuid, 'Next.js Middleware Examples', 'https://www.youtube.com/watch?v=someUniqueVideo11', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000032'::uuid, 'Supabase Auth Basics', 'https://www.youtube.com/watch?v=someUniqueVideo12', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000033'::uuid, 'TypeScript Utility Types', 'https://www.youtube.com/watch?v=someUniqueVideo13', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000034'::uuid, 'LangChain for LLM Orchestration', 'https://www.youtube.com/watch?v=someUniqueVideo14', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000035'::uuid, 'AI Ethics on YouTube', 'https://www.youtube.com/watch?v=someUniqueVideo15', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000036'::uuid, 'AWS Lambda Edge Cases', 'https://www.youtube.com/watch?v=someUniqueVideo16', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000037'::uuid, 'React Suspense Basics', 'https://www.youtube.com/watch?v=someUniqueVideo17', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000038'::uuid, 'Serverless Framework Demo', 'https://www.youtube.com/watch?v=someUniqueVideo18', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000039'::uuid, 'Tailwind CSS Animations', 'https://www.youtube.com/watch?v=someUniqueVideo19', expert_profile_id),
+  ('00000000-0000-0000-0000-000000000040'::uuid, 'Optimizing Web Vitals', 'https://www.youtube.com/watch?v=someUniqueVideo20', expert_profile_id)
 ) as v(id, title, url, created_by)
 where not exists (select 1 from public.sources where sources.id = v.id);
 
@@ -115,7 +136,28 @@ select * from (values
   ('00000000-0000-0000-0000-000000000103'::uuid, now() - interval '5 days', now() - interval '4 days', now() - interval '3 days', null, '00000000-0000-0000-0000-000000000001'::uuid, 'how_to_guide'::public.content_type, 'math'::public.tag, jlelon_profile_id, expert_profile_id),
   ('00000000-0000-0000-0000-000000000104'::uuid, now() - interval '10 days', now() - interval '9 days', now() - interval '8 days', now() - interval '1 day', '00000000-0000-0000-0000-000000000002'::uuid, 'reference'::public.content_type, 'software'::public.tag, jlelon_profile_id, expert_profile_id),
   -- New vector spaces request
-  ('00000000-0000-0000-0000-000000000105'::uuid, now() - interval '10 days', now() - interval '9 days', now() - interval '8 days', now() - interval '1 day', '00000000-0000-0000-0000-000000000015'::uuid, 'explanation'::public.content_type, 'math'::public.tag, jlelon_profile_id, expert_profile_id)
+  ('00000000-0000-0000-0000-000000000105'::uuid, now() - interval '10 days', now() - interval '9 days', now() - interval '8 days', now() - interval '1 day', '00000000-0000-0000-0000-000000000015'::uuid, 'explanation'::public.content_type, 'math'::public.tag, jlelon_profile_id, expert_profile_id),
+  -- New 20 additional requests in "not accepted" status (accepted_at=null)
+  ('00000000-0000-0000-0000-000000000601'::uuid, now() - interval '1 day', null, null, null, '00000000-0000-0000-0000-000000000021'::uuid, 'tutorial', 'software', student_profile_id, null),
+  ('00000000-0000-0000-0000-000000000602'::uuid, now() - interval '2 days', null, null, null, '00000000-0000-0000-0000-000000000022'::uuid, 'tutorial', 'software', student_profile_id, null),
+  ('00000000-0000-0000-0000-000000000603'::uuid, now() - interval '3 days', null, null, null, '00000000-0000-0000-0000-000000000023'::uuid, 'explanation', 'ai', student_profile_id, null),
+  ('00000000-0000-0000-0000-000000000604'::uuid, now() - interval '4 days', null, null, null, '00000000-0000-0000-0000-000000000024'::uuid, 'how_to_guide', 'math', student_profile_id, null),
+  ('00000000-0000-0000-0000-000000000605'::uuid, now() - interval '5 days', null, null, null, '00000000-0000-0000-0000-000000000025'::uuid, 'reference', 'software', student_profile_id, null),
+  ('00000000-0000-0000-0000-000000000606'::uuid, now() - interval '6 days', null, null, null, '00000000-0000-0000-0000-000000000026'::uuid, 'tutorial', 'software', student_profile_id, null),
+  ('00000000-0000-0000-0000-000000000607'::uuid, now() - interval '7 days', null, null, null, '00000000-0000-0000-0000-000000000027'::uuid, 'explanation', 'ai', student_profile_id, null),
+  ('00000000-0000-0000-0000-000000000608'::uuid, now() - interval '8 days', null, null, null, '00000000-0000-0000-0000-000000000028'::uuid, 'how_to_guide', 'math', student_profile_id, null),
+  ('00000000-0000-0000-0000-000000000609'::uuid, now() - interval '9 days', null, null, null, '00000000-0000-0000-0000-000000000029'::uuid, 'reference', 'software', student_profile_id, null),
+  ('00000000-0000-0000-0000-000000000610'::uuid, now() - interval '10 days', null, null, null, '00000000-0000-0000-0000-000000000030'::uuid, 'tutorial', 'software', student_profile_id, null),
+  ('00000000-0000-0000-0000-000000000611'::uuid, now() - interval '11 days', null, null, null, '00000000-0000-0000-0000-000000000031'::uuid, 'explanation', 'ai', student_profile_id, null),
+  ('00000000-0000-0000-0000-000000000612'::uuid, now() - interval '12 days', null, null, null, '00000000-0000-0000-0000-000000000032'::uuid, 'how_to_guide', 'math', student_profile_id, null),
+  ('00000000-0000-0000-0000-000000000613'::uuid, now() - interval '13 days', null, null, null, '00000000-0000-0000-0000-000000000033'::uuid, 'reference', 'software', student_profile_id, null),
+  ('00000000-0000-0000-0000-000000000614'::uuid, now() - interval '14 days', null, null, null, '00000000-0000-0000-0000-000000000034'::uuid, 'tutorial', 'software', student_profile_id, null),
+  ('00000000-0000-0000-0000-000000000615'::uuid, now() - interval '15 days', null, null, null, '00000000-0000-0000-0000-000000000035'::uuid, 'explanation', 'ai', student_profile_id, null),
+  ('00000000-0000-0000-0000-000000000616'::uuid, now() - interval '16 days', null, null, null, '00000000-0000-0000-0000-000000000036'::uuid, 'how_to_guide', 'math', student_profile_id, null),
+  ('00000000-0000-0000-0000-000000000617'::uuid, now() - interval '17 days', null, null, null, '00000000-0000-0000-0000-000000000037'::uuid, 'reference', 'software', student_profile_id, null),
+  ('00000000-0000-0000-0000-000000000618'::uuid, now() - interval '18 days', null, null, null, '00000000-0000-0000-0000-000000000038'::uuid, 'tutorial', 'software', student_profile_id, null),
+  ('00000000-0000-0000-0000-000000000619'::uuid, now() - interval '19 days', null, null, null, '00000000-0000-0000-0000-000000000039'::uuid, 'explanation', 'ai', student_profile_id, null),
+  ('00000000-0000-0000-0000-000000000620'::uuid, now() - interval '20 days', null, null, null, '00000000-0000-0000-0000-000000000040'::uuid, 'how_to_guide', 'math', student_profile_id, null)
 ) as v(id, created_at, accepted_at, started_at, finished_at, source_id, content_type, tag, student_id, expert_id)
 where not exists (select 1 from public.requests where requests.id = v.id);
 

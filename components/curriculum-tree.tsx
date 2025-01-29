@@ -8,6 +8,7 @@ import ReactFlow, {
   MarkerType,
   useNodesState,
   useEdgesState,
+  Handle,
 } from "reactflow"
 import "reactflow/dist/style.css"
 import type { CurriculumNode } from "@/types/request"
@@ -23,6 +24,18 @@ function CustomNode({ data }: { data: { title: string; url: string } }) {
       className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm cursor-pointer hover:bg-gray-50"
       onClick={() => window.open(data.url, '_blank')}
     >
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="source-handle"
+        style={{ background: '#555' }}
+      />
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="target-handle"
+        style={{ background: '#555' }}
+      />
       <p className="text-sm font-medium text-gray-900 truncate">{data.title}</p>
     </div>
   );
@@ -85,16 +98,18 @@ export default function CurriculumTree({ nodes }: CurriculumTreeProps) {
       )
 
       possibleChildren.forEach(child => {
-        flowEdges.push({
+          flowEdges.push({
           id: `${node.id}-${child.id}`,
           source: node.id.toString(),
           target: child.id.toString(),
-          type: "smoothstep",
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-          },
-          style: { stroke: "#999" },
-        })
+            sourceHandle: 'source-handle',
+            targetHandle: 'target-handle',
+            type: "smoothstep",
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+            },
+            style: { stroke: "#999" },
+          })
       })
     })
 
