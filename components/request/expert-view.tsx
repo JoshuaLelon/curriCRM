@@ -10,13 +10,14 @@ import { canEditCurriculum, canSubmitRequest } from "@/utils/request-permissions
 import RequestDetails from "./request-details"
 import Chat from "./chat"
 import CurriculumTable from "./curriculum-table"
-import CurriculumViewTable from "./curriculum-view-table"
+import CurriculumView from "./curriculum-view"
 
 interface ExpertViewProps {
   request: Request
   currentUser: {
     id: string
     role: "expert"
+    email: string
   }
   onAddNode: () => void
   onUpdateNode: (nodeId: string, updates: Partial<CurriculumNode>) => void
@@ -62,7 +63,7 @@ export default function ExpertView({
           onSubmit={onSubmit}
         />
       ) : status === "finished" ? (
-        <CurriculumViewTable
+        <CurriculumView
           nodes={request.curriculum?.curriculum_nodes || []}
         />
       ) : null}

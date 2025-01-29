@@ -110,8 +110,11 @@ export default function AdminHome({ requests: initialRequests, experts: initialE
 
       // If expertId is empty string, we're unassigning the expert
       const updateData = expertId === "" ? 
-        { expert_id: null } : 
-        { expert_id: isAIAssignment ? adminProfile.id : experts.find((e) => e.user_id === expertId)?.id }
+        { expert_id: null, accepted_at: null } : 
+        { 
+          expert_id: isAIAssignment ? adminProfile.id : experts.find((e) => e.user_id === expertId)?.id,
+          accepted_at: isAIAssignment ? new Date().toISOString() : null
+        }
 
       console.log('Found expert data:', { updateData, experts, expertId, isAIAssignment })
 
@@ -124,10 +127,7 @@ export default function AdminHome({ requests: initialRequests, experts: initialE
       console.log('Updating request with data:', updateData)
       const { error } = await supabase
         .from("requests")
-        .update({
-          ...updateData,
-          accepted_at: isAIAssignment ? new Date().toISOString() : null
-        })
+        .update(updateData)
         .eq("id", requestId)
 
       if (error) throw error

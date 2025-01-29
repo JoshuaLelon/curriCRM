@@ -4,7 +4,7 @@ import { Request } from "@/types/request"
 import { getRequestStatus } from "@/utils/request-status"
 import RequestDetails from "./request-details"
 import Chat from "./chat"
-import CurriculumViewTable from "../curriculum-view-table"
+import CurriculumView from "./curriculum-view"
 import RequestProgressView from "./request-progress-view"
 
 interface AdminViewProps {
@@ -60,7 +60,7 @@ export default function AdminView({
 
       {/* Show curriculum in finished state */}
       {status === "finished" && (
-        <CurriculumViewTable
+        <CurriculumView
           nodes={request.curriculum?.curriculum_nodes || []}
         />
       )}

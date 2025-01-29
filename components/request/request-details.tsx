@@ -35,11 +35,22 @@ export default function RequestDetails({
   const [request, setRequest] = useState(initialRequest)
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState({
-    sourceName: request.source?.title || "",
-    sourceUrl: request.source?.url || "",
-    tag: request.tag as Tag,
-    type: request.content_type as ContentType,
+    sourceName: initialRequest.source?.title || "",
+    sourceUrl: initialRequest.source?.url || "",
+    tag: initialRequest.tag as Tag,
+    type: initialRequest.content_type as ContentType,
   })
+
+  // Update local state when initialRequest changes
+  useEffect(() => {
+    setRequest(initialRequest)
+    setFormData({
+      sourceName: initialRequest.source?.title || "",
+      sourceUrl: initialRequest.source?.url || "",
+      tag: initialRequest.tag as Tag,
+      type: initialRequest.content_type as ContentType,
+    })
+  }, [initialRequest])
 
   const status = getRequestStatus(request)
   const canEdit = canEditRequestDetails(request, currentUser)
@@ -94,6 +105,7 @@ export default function RequestDetails({
             return
           }
 
+          console.log(`[Request Details] Setting updated request data:`, data)
           setRequest(data)
         }
       )
@@ -106,6 +118,17 @@ export default function RequestDetails({
       supabase.removeChannel(channel)
     }
   }, [request.id, supabase])
+
+  // Debug logging
+  useEffect(() => {
+    console.log('[Request Details] State updated:', {
+      requestId: request.id,
+      expertId: request.expert_id,
+      expertEmail: request.expert?.email,
+      status,
+      currentUserId: currentUser.id
+    })
+  }, [request, status, currentUser.id])
 
   useEffect(() => {
     if (canAssign && experts) {
@@ -294,8 +317,6 @@ export default function RequestDetails({
                   currentUser,
                   onExpertAssign: !!onExpertAssign
                 })
-                console.log('[Request Details] Expert selected:', value)
-                console.log('[Request Details] Current user:', currentUser)
                 onExpertAssign?.(value === "none" ? "" : value)
               }}
             >

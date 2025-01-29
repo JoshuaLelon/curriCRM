@@ -9,13 +9,13 @@ import { getRequestStatus } from "@/utils/request-status"
 import { canDeleteRequest } from "@/utils/request-permissions"
 import RequestDetails from "./request-details"
 import Chat from "./chat"
-import CurriculumViewTable from "./curriculum-view-table"
 
 interface StudentViewProps {
   request: Request
   currentUser: {
     id: string
     role: "student"
+    email: string
   }
   onRequestUpdate: (updates: Partial<Request>) => void
   onRequestDelete: () => void
@@ -43,13 +43,6 @@ export default function StudentView({
         <Chat
           request={request}
           currentUser={currentUser}
-        />
-      )}
-
-      {/* Show curriculum in finished state */}
-      {status === "finished" && (
-        <CurriculumViewTable
-          nodes={request.curriculum?.curriculum_nodes || []}
         />
       )}
 

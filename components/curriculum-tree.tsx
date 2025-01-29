@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, useMemo } from "react"
 import ReactFlow, {
   Node,
   Edge,
@@ -15,6 +15,10 @@ import type { CurriculumNode } from "@/types/request"
 interface CurriculumTreeProps {
   nodes: CurriculumNode[]
 }
+
+// Define node types outside of component to prevent recreation
+const nodeTypes = {}
+const edgeTypes = {}
 
 export default function CurriculumTree({ nodes }: CurriculumTreeProps) {
   // Transform curriculum nodes into React Flow nodes and edges
@@ -88,7 +92,7 @@ export default function CurriculumTree({ nodes }: CurriculumTreeProps) {
     return { nodes: flowNodes, edges: flowEdges }
   }, [nodes])
 
-  const { nodes: flowNodes, edges: flowEdges } = getNodesAndEdges()
+  const { nodes: flowNodes, edges: flowEdges } = useMemo(() => getNodesAndEdges(), [getNodesAndEdges])
   const [reactFlowNodes, setNodes, onNodesChange] = useNodesState(flowNodes)
   const [reactFlowEdges, setEdges, onEdgesChange] = useEdgesState(flowEdges)
 
@@ -99,6 +103,8 @@ export default function CurriculumTree({ nodes }: CurriculumTreeProps) {
         edges={reactFlowEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         fitView
         attributionPosition="bottom-left"
       />

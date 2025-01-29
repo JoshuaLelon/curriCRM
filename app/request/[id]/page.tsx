@@ -424,39 +424,45 @@ export default function RequestPage({ params }: { params: { id: string } }) {
 
   // Render view based on user role
   const renderView = () => {
-    switch (currentUser.role) {
-      case "student":
-        return (
-          <StudentView
-            request={request}
-            currentUser={{ id: currentUser.id, role: currentUser.role }}
-            onRequestUpdate={handleRequestUpdate}
-            onRequestDelete={handleRequestDelete}
-          />
-        )
-      case "expert":
-        return (
-          <ExpertView
-            request={request}
-            currentUser={{ id: currentUser.id, role: currentUser.role }}
-            onAddNode={handleAddNode}
-            onUpdateNode={handleNodeUpdate}
-            onUpdateSource={handleSourceUpdate}
-            onSubmit={handleSubmit}
-          />
-        )
-      case "admin":
-        return (
-          <AdminView
-            request={request}
-            currentUser={{ id: currentUser.id, role: currentUser.role }}
-            experts={experts}
-            onExpertAssign={handleExpertAssign}
-          />
-        )
-      default:
-        return <div>Invalid user role</div>
+    // If user is admin, always show admin view regardless of other roles
+    if (currentUser.role === "admin") {
+      return (
+        <AdminView
+          request={request}
+          currentUser={{ id: currentUser.id, role: currentUser.role, email: currentUser.email }}
+          experts={experts}
+          onExpertAssign={handleExpertAssign}
+        />
+      )
     }
+
+    // For non-admin users, check if they're an expert
+    if (currentUser.role === "expert") {
+      return (
+        <ExpertView
+          request={request}
+          currentUser={{ id: currentUser.id, role: currentUser.role, email: currentUser.email }}
+          onAddNode={handleAddNode}
+          onUpdateNode={handleNodeUpdate}
+          onUpdateSource={handleSourceUpdate}
+          onSubmit={handleSubmit}
+        />
+      )
+    }
+
+    // Default to student view
+    if (currentUser.role === "student") {
+      return (
+        <StudentView
+          request={request}
+          currentUser={{ id: currentUser.id, role: currentUser.role, email: currentUser.email }}
+          onRequestUpdate={handleRequestUpdate}
+          onRequestDelete={handleRequestDelete}
+        />
+      )
+    }
+
+    return <div>Invalid user role</div>
   }
 
   return (

@@ -2,7 +2,6 @@
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { CurriculumNode } from "@/types/request"
-import CurriculumTree from "@/components/curriculum-tree"
 
 interface CurriculumViewTableProps {
   nodes: CurriculumNode[]
@@ -20,8 +19,6 @@ export default function CurriculumViewTable({ nodes }: CurriculumViewTableProps)
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Curriculum</h2>
-
-      <CurriculumTree nodes={nodes} />
 
       <Table>
         <TableHeader>
