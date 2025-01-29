@@ -8,8 +8,8 @@ interface CurriculumViewTableProps {
 }
 
 export default function CurriculumViewTable({ nodes }: CurriculumViewTableProps) {
-  // Sort nodes by index_in_curriculum only to match tree structure
-  const sortedNodes = [...nodes].sort((a, b) => a.index_in_curriculum - b.index_in_curriculum)
+  // Sort nodes by index_in_curriculum in reverse order to show dependencies first
+  const sortedNodes = [...nodes].sort((a, b) => b.index_in_curriculum - a.index_in_curriculum)
 
   return (
     <div className="space-y-4">
@@ -23,23 +23,22 @@ export default function CurriculumViewTable({ nodes }: CurriculumViewTableProps)
             <TableHead>URL</TableHead>
             <TableHead>Start Time</TableHead>
             <TableHead>End Time</TableHead>
-            <TableHead>Level</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sortedNodes.map((node) => (
+          {sortedNodes.map((node, index) => (
             <TableRow key={node.id}>
-              <TableCell>{node.index_in_curriculum + 1}</TableCell>
+              <TableCell>{index + 1}</TableCell>
               <TableCell>{node.source?.title || "Untitled"}</TableCell>
               <TableCell>
-                {node.source?.url ? (
+                {node.source?.URL ? (
                   <a
-                    href={node.source.url}
+                    href={node.source.URL}
                     className="text-blue-600 hover:underline"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    {node.source.url}
+                    {node.source.URL}
                   </a>
                 ) : (
                   "No URL"
@@ -47,7 +46,6 @@ export default function CurriculumViewTable({ nodes }: CurriculumViewTableProps)
               </TableCell>
               <TableCell>{node.start_time}</TableCell>
               <TableCell>{node.end_time}</TableCell>
-              <TableCell>{node.level}</TableCell>
             </TableRow>
           ))}
         </TableBody>

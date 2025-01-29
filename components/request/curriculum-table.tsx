@@ -24,27 +24,26 @@ interface EditableRowProps {
   node: CurriculumNode
   onUpdateNode: (updates: Partial<CurriculumNode>) => void
   onUpdateSource: (updates: Partial<Source>) => void
+  index: number
 }
 
-function EditableRow({ node, onUpdateNode, onUpdateSource }: EditableRowProps) {
+function EditableRow({ node, onUpdateNode, onUpdateSource, index }: EditableRowProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState({
     title: node.source?.title || "",
-    url: node.source?.url || "",
+    URL: node.source?.URL || "",
     startTime: node.start_time.toString(),
     endTime: node.end_time.toString(),
-    level: node.level.toString(),
   })
 
   const handleSubmit = () => {
     onUpdateSource({
       title: formData.title,
-      url: formData.url,
+      URL: formData.URL,
     })
     onUpdateNode({
       start_time: parseInt(formData.startTime),
       end_time: parseInt(formData.endTime),
-      level: parseInt(formData.level),
     })
     setIsEditing(false)
   }
@@ -52,7 +51,7 @@ function EditableRow({ node, onUpdateNode, onUpdateSource }: EditableRowProps) {
   if (isEditing) {
     return (
       <TableRow>
-        <TableCell>{node.index_in_curriculum + 1}</TableCell>
+        <TableCell>{index + 1}</TableCell>
         <TableCell>
           <Input
             value={formData.title}
@@ -61,8 +60,8 @@ function EditableRow({ node, onUpdateNode, onUpdateSource }: EditableRowProps) {
         </TableCell>
         <TableCell>
           <Input
-            value={formData.url}
-            onChange={(e) => setFormData((prev) => ({ ...prev, url: e.target.value }))}
+            value={formData.URL}
+            onChange={(e) => setFormData((prev) => ({ ...prev, URL: e.target.value }))}
           />
         </TableCell>
         <TableCell>
@@ -80,13 +79,6 @@ function EditableRow({ node, onUpdateNode, onUpdateSource }: EditableRowProps) {
           />
         </TableCell>
         <TableCell>
-          <Input
-            type="number"
-            value={formData.level}
-            onChange={(e) => setFormData((prev) => ({ ...prev, level: e.target.value }))}
-          />
-        </TableCell>
-        <TableCell>
           <div className="flex gap-2">
             <Button size="sm" onClick={handleSubmit}>Save</Button>
             <Button size="sm" variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
@@ -98,12 +90,11 @@ function EditableRow({ node, onUpdateNode, onUpdateSource }: EditableRowProps) {
 
   return (
     <TableRow>
-      <TableCell>{node.index_in_curriculum + 1}</TableCell>
+      <TableCell>{index + 1}</TableCell>
       <TableCell>{node.source?.title || "Untitled"}</TableCell>
-      <TableCell>{node.source?.url || "No URL"}</TableCell>
+      <TableCell>{node.source?.URL || "No URL"}</TableCell>
       <TableCell>{node.start_time}</TableCell>
       <TableCell>{node.end_time}</TableCell>
-      <TableCell>{node.level}</TableCell>
       <TableCell>
         <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
           Edit
@@ -124,7 +115,7 @@ export default function CurriculumTable({
   const canEdit = canEditCurriculum(request, currentUser)
   const canSubmit = canSubmitRequest(request, currentUser)
   const nodes = [...(request.curriculum?.curriculum_nodes || [])].sort(
-    (a, b) => a.index_in_curriculum - b.index_in_curriculum
+    (a, b) => b.index_in_curriculum - a.index_in_curriculum
   )
 
   return (
@@ -144,27 +135,26 @@ export default function CurriculumTable({
             <TableHead>URL</TableHead>
             <TableHead>Start Time</TableHead>
             <TableHead>End Time</TableHead>
-            <TableHead>Level</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {nodes.map((node) => (
+          {nodes.map((node, index) => (
             canEdit ? (
               <EditableRow
                 key={node.id}
                 node={node}
+                index={index}
                 onUpdateNode={(updates) => onUpdateNode?.(node.id, updates)}
                 onUpdateSource={(updates) => node.source && onUpdateSource?.(node.source.id, updates)}
               />
             ) : (
               <TableRow key={node.id}>
-                <TableCell>{node.index_in_curriculum + 1}</TableCell>
+                <TableCell>{index + 1}</TableCell>
                 <TableCell>{node.source?.title || "Untitled"}</TableCell>
-                <TableCell>{node.source?.url || "No URL"}</TableCell>
+                <TableCell>{node.source?.URL || "No URL"}</TableCell>
                 <TableCell>{node.start_time}</TableCell>
                 <TableCell>{node.end_time}</TableCell>
-                <TableCell>{node.level}</TableCell>
                 <TableCell></TableCell>
               </TableRow>
             )
