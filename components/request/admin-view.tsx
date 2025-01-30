@@ -41,19 +41,25 @@ export default function AdminView({
         .from('requests')
         .select(`
           *,
-          curriculum:curriculums (
+          source:sources(*),
+          student:profiles!requests_student_id_fkey(
             id,
-            curriculum_nodes (
-              id,
-              level,
-              index_in_curriculum,
-              start_time,
-              end_time,
-              source:sources (
-                id,
-                title,
-                URL
-              )
+            email,
+            specialty,
+            is_admin
+          ),
+          expert:profiles!requests_expert_id_fkey(
+            id,
+            user_id,
+            email,
+            specialty,
+            is_admin
+          ),
+          curriculum:curriculums(
+            *,
+            curriculum_nodes(
+              *,
+              source:sources(*)
             )
           )
         `)
@@ -66,8 +72,20 @@ export default function AdminView({
       }
       
       if (data) {
-        console.log('[Admin View] Fetched latest request data:', data)
-        setRequest(data)
+        console.log('[Admin View] Fetched latest request data:', {
+          requestId: data.id,
+          hasCurriculum: !!data.curriculum?.[0],
+          curriculumId: data.curriculum?.[0]?.id,
+          nodeCount: data.curriculum?.[0]?.curriculum_nodes?.length,
+          nodes: data.curriculum?.[0]?.curriculum_nodes
+        })
+        
+        // Transform the data to match expected format
+        const transformedData = {
+          ...data,
+          curriculum: data.curriculum?.[0] || null
+        }
+        setRequest(transformedData)
       }
     } catch (error) {
       console.error('[Admin View] Error fetching request data:', error)
@@ -76,15 +94,15 @@ export default function AdminView({
     }
   }, [supabase, request.id])
   
-  // Set up realtime subscription
+  // Set up realtime subscription for both requests and curriculum_nodes
   useEffect(() => {
-    console.log('[Admin View] Setting up realtime subscription')
-    const channel = supabase
+    console.log('[Admin View] Setting up realtime subscriptions')
+    const requestChannel = supabase
       .channel(`request_${request.id}_updates`)
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'requests',
           filter: `id=eq.${request.id}`,
@@ -93,7 +111,7 @@ export default function AdminView({
           console.log('[Admin View] Received request update:', payload)
           const updatedRequest = payload.new as Request
           
-          // If request is finished, fetch complete data
+          // If request is finished or curriculum changes, fetch complete data
           if (updatedRequest.finished_at && !request.finished_at) {
             await fetchLatestRequest()
           } else {
@@ -103,11 +121,35 @@ export default function AdminView({
       )
       .subscribe()
 
-    return () => {
-      console.log('[Admin View] Cleaning up subscription')
-      channel.unsubscribe()
+    // Add subscription for curriculum_nodes if we have a curriculum
+    let curriculumChannel: ReturnType<typeof supabase.channel> | undefined
+    if (request.curriculum?.id) {
+      curriculumChannel = supabase
+        .channel(`curriculum_${request.curriculum.id}_updates`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'curriculum_nodes',
+            filter: `curriculum_id=eq.${request.curriculum.id}`,
+          },
+          async () => {
+            console.log('[Admin View] Received curriculum_nodes update, fetching latest data')
+            await fetchLatestRequest()
+          }
+        )
+        .subscribe()
     }
-  }, [supabase, request.id, request.finished_at, fetchLatestRequest])
+
+    return () => {
+      console.log('[Admin View] Cleaning up subscriptions')
+      requestChannel.unsubscribe()
+      if (curriculumChannel) {
+        curriculumChannel.unsubscribe()
+      }
+    }
+  }, [supabase, request.id, request.curriculum?.id, request.finished_at, fetchLatestRequest])
 
   // Fetch latest data when AI completes
   useEffect(() => {
@@ -119,7 +161,7 @@ export default function AdminView({
 
   const status = getRequestStatus(request)
   const isAIProcessing = request.started_at && !request.finished_at && isAIHandledRequest(request, currentUser) && !isAIComplete
-  
+
   // Debug logging
   useEffect(() => {
     if (request.curriculum?.curriculum_nodes) {
