@@ -8,7 +8,7 @@ import { useSupabase } from "@/components/providers/supabase-provider"
 import RequestDetails from "./request-details"
 import Chat from "./chat"
 import CurriculumView from "./curriculum-view"
-import AIProgress from "./ai-progress"
+import { AIProgress } from "./ai-progress"
 
 interface AdminViewProps {
   request: Request
@@ -29,6 +29,29 @@ export default function AdminView({
 }: AdminViewProps) {
   const { supabase } = useSupabase()
   const [request, setRequest] = useState<Request>(initialRequest)
+  const [isLoading, setIsLoading] = useState(false)
+  
+  // Fetch latest request data including curriculum
+  const fetchLatestRequest = async () => {
+    try {
+      setIsLoading(true)
+      const { data, error } = await supabase
+        .from('requests')
+        .select('*')
+        .eq('id', request.id)
+        .single()
+      
+      if (error) throw error
+      if (data) {
+        console.log('[Admin View] Fetched latest request data:', data)
+        setRequest(data)
+      }
+    } catch (error) {
+      console.error('[Admin View] Error fetching request:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
   
   // Subscribe to request changes
   useEffect(() => {
@@ -44,9 +67,17 @@ export default function AdminView({
           table: 'requests',
           filter: `id=eq.${request.id}`
         },
-        (payload) => {
+        async (payload) => {
           console.log('[Admin View] Received request update:', payload)
-          setRequest(payload.new as Request)
+          const newRequest = payload.new as Request
+          
+          // If the request has just finished, fetch the complete data including curriculum
+          if (newRequest.finished_at && !request.finished_at) {
+            console.log('[Admin View] Request finished, fetching complete data')
+            await fetchLatestRequest()
+          } else {
+            setRequest(newRequest)
+          }
         }
       )
       .subscribe((status) => {
@@ -99,7 +130,7 @@ export default function AdminView({
       )}
 
       {/* Show curriculum in finished state */}
-      {status === "finished" && (
+      {(status === "finished" || request.curriculum) && !isLoading && (
         <CurriculumView
           nodes={request.curriculum?.curriculum_nodes || []}
         />

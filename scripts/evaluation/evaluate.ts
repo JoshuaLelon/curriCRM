@@ -1,7 +1,7 @@
 // Load environment variables first
 import './load-env'
 
-import { supabase } from '@/lib/supabase'
+import { createServerSupabaseClient } from '@/utils/supabase/server'
 import { client } from '@/lib/langsmith'
 import { runAIWorkflow } from '@/lib/workflows/ai-runner'
 import { Run } from 'langsmith'
@@ -58,6 +58,7 @@ async function evaluateRequest(requestId: string): Promise<EvaluationResult> {
 }
 
 async function main() {
+  const supabase = createServerSupabaseClient()
   // Get our test cases from the database
   const { data: testRequests, error } = await supabase
     .from('requests')

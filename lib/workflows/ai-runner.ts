@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { createServerSupabaseClient } from '@/utils/supabase/server'
 import { StateGraph, MemorySaver, Annotation } from '@langchain/langgraph'
 import { WorkflowMetrics } from '@/lib/langsmith'
 import { v4 as uuidv4 } from 'uuid'
@@ -38,6 +38,7 @@ async function delay(ms: number) {
 }
 
 export async function runAIWorkflow(requestId: string): Promise<WorkflowResult> {
+  const supabase = createServerSupabaseClient()
   // Initialize metrics
   const metrics = new WorkflowMetrics(requestId)
   await metrics.initializeParentRun()
@@ -52,24 +53,32 @@ export async function runAIWorkflow(requestId: string): Promise<WorkflowResult> 
     // 1) Assemble the state graph
     const workflow = new StateGraph(WorkflowAnnotation)
       .addNode('gatherContext', async (state, config) => {
+        console.log(`[AI Runner] Starting gatherContext for request ${requestId}`)
         await announceProgress(requestId, 'gatherContext')
-        await delay(3000) // 3 second delay
-        return gatherContextNode(state, config)
+        const result = await gatherContextNode(state, config)
+        console.log(`[AI Runner] Completed gatherContext for request ${requestId}`)
+        return result
       })
       .addNode('plan', async (state, config) => {
+        console.log(`[AI Runner] Starting plan for request ${requestId}`)
         await announceProgress(requestId, 'plan')
-        await delay(3000) // 3 second delay
-        return planNode(state, config)
+        const result = await planNode(state, config)
+        console.log(`[AI Runner] Completed plan for request ${requestId}`)
+        return result
       })
       .addNode('resourceSearch', async (state, config) => {
+        console.log(`[AI Runner] Starting resourceSearch for request ${requestId}`)
         await announceProgress(requestId, 'resourceSearch')
-        await delay(3000) // 3 second delay
-        return resourceSearchNode(state, config)
+        const result = await resourceSearchNode(state, config)
+        console.log(`[AI Runner] Completed resourceSearch for request ${requestId}`)
+        return result
       })
       .addNode('build', async (state, config) => {
+        console.log(`[AI Runner] Starting build for request ${requestId}`)
         await announceProgress(requestId, 'build')
-        await delay(3000) // 3 second delay
-        return buildCurriculumNode(state, config)
+        const result = await buildCurriculumNode(state, config)
+        console.log(`[AI Runner] Completed build for request ${requestId}`)
+        return result
       })
       // Edges define the order of steps
       .addEdge('__start__', 'gatherContext')
@@ -123,28 +132,37 @@ export async function runAIWorkflow(requestId: string): Promise<WorkflowResult> 
 async function announceProgress(requestId: string, nodeName: string) {
   console.log(`[AI Runner] Broadcasting progress for request ${requestId}: ${nodeName}`)
   
-  const channel = supabase.channel(`request_${requestId}_updates`)
-  console.log(`[AI Runner] Created channel: request_${requestId}_updates`)
-  
   const stepMap: Record<string, number> = {
     gatherContext: 1,
     plan: 2,
     resourceSearch: 3,
     build: 4
   }
+
+  const step = stepMap[nodeName] || 1
+  const totalSteps = 4
   
   try {
+    const supabase = createServerSupabaseClient()
+    const channel = supabase.channel(`request_${requestId}_updates`)
+    
+    await channel.subscribe()
+    
     await channel.send({
       type: 'broadcast',
       event: 'progress',
       payload: {
-        step: stepMap[nodeName] || 1,
-        totalSteps: 4
+        step,
+        totalSteps,
+        stage: nodeName
       }
     })
-    console.log(`[AI Runner] Successfully sent progress update: ${nodeName} (step ${stepMap[nodeName]}/4)`)
+
+    // Keep channel open briefly to ensure message delivery
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    await channel.unsubscribe()
   } catch (error) {
     console.error(`[AI Runner] Error broadcasting progress:`, error)
   }
-  // Channel will be cleaned up when the workflow finishes
-} 
+}

@@ -10,178 +10,176 @@ interface AIProgressProps {
   requestId: string
 }
 
-type Stage = {
-  name: string
-  label: string
-  description: string
-}
-
-const STAGES: Stage[] = [
-  {
-    name: "gatherContext",
-    label: "Gathering Context",
-    description: "Analyzing your request and requirements"
-  },
-  {
-    name: "plan",
-    label: "Planning",
-    description: "Creating a personalized learning plan"
-  },
-  {
-    name: "resourceSearch",
-    label: "Finding Resources",
-    description: "Searching for the best learning materials"
-  },
-  {
-    name: "build",
-    label: "Building Curriculum",
-    description: "Structuring your learning path"
-  }
-]
-
-export default function AIProgress({ requestId }: AIProgressProps) {
+export function AIProgress({ requestId }: AIProgressProps) {
   const { supabase } = useSupabase()
-  const [currentStage, setCurrentStage] = useState<string>("gatherContext")
+  const [stage, setStage] = useState('gatherContext')
+  const [progress, setProgress] = useState(0)
   const [isComplete, setIsComplete] = useState(false)
   const [startTime] = useState<number>(Date.now())
   const [totalTime, setTotalTime] = useState<number>(0)
   const [elapsedTime, setElapsedTime] = useState<number>(0)
   const [stageTimes, setStageTimes] = useState<Record<string, number>>({})
   const [stageStartTime, setStageStartTime] = useState<number>(Date.now())
+  const [completedStages, setCompletedStages] = useState<string[]>([])
+
+  const stageMap = {
+    gatherContext: { label: 'Gathering Context', description: 'Analyzing your request and requirements' },
+    plan: { label: 'Planning', description: 'Creating a personalized learning plan' },
+    resourceSearch: { label: 'Finding Resources', description: 'Searching for the best learning materials' },
+    build: { label: 'Building Curriculum', description: 'Structuring your learning path' }
+  }
+
+  // Update elapsed time every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setElapsedTime(Date.now() - startTime)
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [startTime])
 
   useEffect(() => {
     console.log(`[AI Progress] Setting up channel for request ${requestId}`)
-    const channel = supabase.channel(`request_${requestId}_updates`)
     
-    channel
-      .on('broadcast', { event: 'progress' }, (payload) => {
-        console.log(`[AI Progress] Received broadcast event:`, {
-          type: payload.type,
-          event: payload.event,
-          payload: payload.payload
-        })
+    const channel = supabase.channel(`request_${requestId}_updates`)
+    let mounted = true
 
-        const { step, totalSteps } = payload.payload
-        console.log(`[AI Progress] Processing step ${step}/${totalSteps}`)
+    const handleProgress = (payload: any) => {
+      console.log(`[AI Progress] Received progress update:`, payload)
+      if (!mounted) return
 
-        // Map step number back to stage name
-        const stepToStage: Record<number, string> = {
-          1: 'gatherContext',
-          2: 'plan',
-          3: 'resourceSearch',
-          4: 'build'
-        }
-        const stageName = stepToStage[step] || 'gatherContext'
+      const { step, totalSteps, stage: newStage } = payload.payload
+      if (typeof step !== 'number' || typeof totalSteps !== 'number') {
+        console.warn('[AI Progress] Invalid progress update format:', payload)
+        return
+      }
+
+      // Calculate progress percentage
+      const newProgress = Math.round((step / totalSteps) * 100)
+      setProgress(newProgress)
+
+      if (newStage) {
+        console.log(`[AI Progress] Stage update: ${newStage}`)
         
-        // Record time for the previous stage when moving to a new stage
-        if (currentStage !== stageName) {
+        // If we're moving to a new stage, mark the current stage as completed
+        if (newStage !== stage) {
+          console.log(`[AI Progress] Stage transition: ${stage} -> ${newStage}`)
           const stageTime = (Date.now() - stageStartTime) / 1000
+          console.log(`[AI Progress] Recording time for ${stage}: ${stageTime}s`)
+          
+          // Always update the time for the current stage before moving to next
           setStageTimes(prev => ({
             ...prev,
-            [currentStage]: stageTime
+            [stage]: stageTime
           }))
+          
+          // Add the current stage to completed stages
+          setCompletedStages(prev => {
+            if (prev.includes(stage)) return prev
+            return [...prev, stage]
+          })
+          
+          // Reset start time for new stage
           setStageStartTime(Date.now())
+          setStage(newStage)
         }
+      }
+
+      // If this is the last step
+      if (step === totalSteps) {
+        const finalStageTime = (Date.now() - stageStartTime) / 1000
+        console.log(`[AI Progress] Final stage completed in ${finalStageTime}s`)
         
-        console.log(`[AI Progress] Setting stage to: ${stageName}`)
-        setCurrentStage(stageName)
+        // Update time for the final stage
+        setStageTimes(prev => ({
+          ...prev,
+          [stage]: finalStageTime
+        }))
+        
+        // Add the final stage to completed stages
+        setCompletedStages(prev => {
+          if (prev.includes(stage)) return prev
+          return [...prev, stage]
+        })
+        
+        setIsComplete(true)
+        setTotalTime((Date.now() - startTime) / 1000)
+      }
+    }
 
-        if (step === totalSteps) {
-          console.log('[AI Progress] Final stage reached, will mark as complete soon')
-          // Calculate total time
-          const timeInSeconds = (Date.now() - startTime) / 1000
-          setTotalTime(timeInSeconds)
-          // Record time for the final stage
-          const finalStageTime = (Date.now() - stageStartTime) / 1000
-          setStageTimes(prev => ({
-            ...prev,
-            [stageName]: finalStageTime
-          }))
-          // Wait a bit before marking as complete to show the final stage
-          setTimeout(() => {
-            console.log('[AI Progress] Marking as complete')
-            setIsComplete(true)
-          }, 1000)
-        }
-      })
+    channel
+      .on('broadcast', { event: 'progress' }, handleProgress)
       .subscribe((status) => {
-        console.log(`[AI Progress] Channel subscription status:`, status)
+        console.log(`[AI Progress] Channel subscription status: ${status}`)
       })
-
-    // Reset states when component mounts
-    console.log('[AI Progress] Resetting states on mount')
-    setCurrentStage("gatherContext")
-    setIsComplete(false)
-    setStageTimes({})
-    setStageStartTime(Date.now())
 
     return () => {
-      console.log(`[AI Progress] Cleaning up channel for request ${requestId}`)
-      supabase.removeChannel(channel)
+      mounted = false
+      channel.unsubscribe()
     }
-  }, [requestId, supabase, startTime, currentStage])
+  }, [requestId, supabase, stage])
 
-  // Add timer effect
-  useEffect(() => {
-    if (isComplete) return
+  // Helper function to get current elapsed time for active stage
+  const getCurrentStageTime = () => {
+    return (Date.now() - stageStartTime) / 1000
+  }
 
-    const timer = setInterval(() => {
-      setElapsedTime((Date.now() - startTime) / 1000)
-    }, 100)
+  const getStageStatus = (stageName: string) => {
+    if (completedStages.includes(stageName)) return 'completed'
+    if (stageName === stage) return 'current'
+    return 'pending'
+  }
 
-    return () => clearInterval(timer)
-  }, [startTime, isComplete])
+  const formatTime = (seconds: number) => {
+    if (!seconds || isNaN(seconds)) return '--'
+    return `${seconds.toFixed(1)}s`
+  }
 
-  const currentStageIndex = STAGES.findIndex(s => s.name === currentStage)
-  const progress = isComplete ? 100 : Math.round(((currentStageIndex + 1) / STAGES.length) * 100)
-
-  console.log(`[AI Progress] Current stage: ${currentStage}, progress: ${progress}%`)
+  const getStageTime = (stageName: string) => {
+    const status = getStageStatus(stageName)
+    if (status === 'pending') return '--'
+    if (status === 'current') return formatTime(getCurrentStageTime())
+    return formatTime(stageTimes[stageName])
+  }
 
   return (
-    <div className="space-y-6 rounded-lg border bg-card p-6">
+    <div className="space-y-6 p-4 border rounded-lg">
       <div className="space-y-2">
-        <h3 className="font-semibold">
-          {isComplete 
-            ? `Curriculum Generated (${totalTime.toFixed(1)}s)`
-            : `Generating Your Curriculum (${elapsedTime.toFixed(1)}s)`}
-        </h3>
-        <Progress value={progress} className="h-2" />
+        <h3 className="text-lg font-medium">Generating Your Curriculum ({progress}%)</h3>
+        <Progress value={progress} className="w-full" />
       </div>
 
       <div className="space-y-4">
-        {STAGES.map((stage, index) => {
-          const isActive = stage.name === currentStage
-          const isStageComplete = isComplete || index < currentStageIndex
-          const stageTime = stageTimes[stage.name]
-          
+        {Object.entries(stageMap).map(([key, { label, description }]) => {
+          const status = getStageStatus(key)
           return (
-            <div 
-              key={stage.name}
-              className={cn(
-                "flex items-start gap-3 transition-colors",
-                isActive && "text-primary",
-                !isActive && !isStageComplete && "text-muted-foreground"
-              )}
-            >
-              {isStageComplete ? (
-                <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-primary" />
-              ) : isActive ? (
-                <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin" />
+            <div key={key} className="flex items-start gap-4">
+              {status === 'completed' ? (
+                <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5" />
+              ) : status === 'current' ? (
+                <Loader2 className="w-5 h-5 text-blue-500 mt-0.5 animate-spin" />
               ) : (
-                <Circle className="h-5 w-5 flex-shrink-0" />
+                <Circle className="w-5 h-5 text-gray-300 mt-0.5" />
               )}
               <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <div className="font-medium">{stage.label}</div>
-                  {stageTime && <div className="text-sm text-muted-foreground">({stageTime.toFixed(1)}s)</div>}
+                <div className="flex justify-between items-center">
+                  <p className={cn(
+                    "font-medium",
+                    status === 'completed' && "text-green-600",
+                    status === 'current' && "text-blue-600"
+                  )}>{label}</p>
+                  <span className="text-sm text-gray-500">
+                    {getStageTime(key)}
+                  </span>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  {stage.description}
-                </div>
+                <p className="text-sm text-gray-500">{description}</p>
               </div>
             </div>
           )
         })}
+      </div>
+
+      <div className="text-sm text-gray-500 text-right">
+        Total time: {isComplete ? formatTime(totalTime) : formatTime(elapsedTime / 1000)}
       </div>
     </div>
   )

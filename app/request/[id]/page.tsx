@@ -118,9 +118,9 @@ export default function RequestPage({ params }: { params: { id: string } }) {
           })))
         }
 
-        // Subscribe to request changes
+        // Subscribe to request, curriculum, and curriculum_node changes
         const channel = supabase
-          .channel(`request_${params.id}`)
+          .channel(`request_${params.id}_all_changes`)
           .on(
             "postgres_changes",
             {
@@ -129,8 +129,34 @@ export default function RequestPage({ params }: { params: { id: string } }) {
               table: "requests",
               filter: `id=eq.${params.id}`,
             },
-            async (payload) => {
+            async () => {
               console.log("Request updated, fetching new data...")
+              await fetchRequestData()
+            }
+          )
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "curriculums",
+              filter: `request_id=eq.${params.id}`,
+            },
+            async () => {
+              console.log("Curriculum updated, fetching new data...")
+              await fetchRequestData()
+            }
+          )
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "curriculum_nodes",
+              filter: `curriculum_id=in.(select id from curriculums where request_id = '${params.id}')`,
+            },
+            async () => {
+              console.log("Curriculum nodes updated, fetching new data...")
               await fetchRequestData()
             }
           )

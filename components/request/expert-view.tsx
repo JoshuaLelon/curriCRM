@@ -11,7 +11,7 @@ import RequestDetails from "./request-details"
 import Chat from "./chat"
 import CurriculumTable from "./curriculum-table"
 import CurriculumView from "./curriculum-view"
-import AIProgress from "./ai-progress"
+import { AIProgress } from "./ai-progress"
 
 interface ExpertViewProps {
   request: Request

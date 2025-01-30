@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { createServerSupabaseClient } from '@/utils/supabase/server'
 import { ChatOpenAI } from '@langchain/openai'
 import { HumanMessage } from '@langchain/core/messages'
 import { RunnableConfig } from '@langchain/core/runnables'
@@ -8,6 +8,7 @@ import { WorkflowState, WorkflowStateUpdate } from './types'
 // 1) gatherContextNode
 export const gatherContextNode = traceNode('gatherContext')(async (state: Record<string, any>): Promise<WorkflowStateUpdate> => {
   try {
+    const supabase = createServerSupabaseClient()
     const { data, error } = await supabase
       .from('requests')
       .select('*')
@@ -40,6 +41,7 @@ export const gatherContextNode = traceNode('gatherContext')(async (state: Record
 // 2) planNode
 export const planNode = traceNode('plan')(async (state: Record<string, any>): Promise<WorkflowStateUpdate> => {
   try {
+    const supabase = createServerSupabaseClient()
     const tag = state.context?.tag || 'GeneralTopic'
     const model = new ChatOpenAI({ 
       temperature: 0,
@@ -80,6 +82,7 @@ export const resourceSearchNode = traceNode('resourceSearch')(async (state: Reco
   
   try {
     console.log(`[AI Node: resourceSearch] Processing ${planItems.length} items for request ${state.requestId}:`, planItems)
+    const supabase = createServerSupabaseClient()
     const resources: Record<string, { title: string; URL: string }[]> = {}
 
     // Initialize Tavily client
@@ -132,6 +135,7 @@ export const buildCurriculumNode = traceNode('build')(async (state: Record<strin
   const { planItems = [], resources = {}, requestId } = state
 
   // Generate a UUID for the curriculum
+  const supabase = createServerSupabaseClient()
   const { data: newCurriculum, error: curriculumError } = await supabase
     .from('curriculums')
     .insert([{ 
@@ -178,3 +182,8 @@ export const buildCurriculumNode = traceNode('build')(async (state: Record<strin
 
   return {}
 })
+
+export async function updateRequestStatus(requestId: string, status: string) {
+  const supabase = createServerSupabaseClient()
+  // ... existing code ...
+}

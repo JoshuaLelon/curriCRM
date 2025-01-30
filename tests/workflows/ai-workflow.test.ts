@@ -11,7 +11,7 @@ import { client as langsmith } from '@/lib/langsmith'
 import type { Run } from 'langsmith/schemas'
 import type { RunCreate, RunUpdate } from 'langsmith/schemas'
 import { runAIWorkflow, WorkflowResult } from '../../lib/workflows/ai-runner'
-import { supabase } from '@/lib/supabase'
+import { createServerSupabaseClient } from '@/utils/supabase/server'
 import { PostgrestSingleResponse } from '@supabase/supabase-js'
 import { WorkflowState } from '@/lib/workflows/types'
 import { trackWorkflowMetrics } from '@/lib/metrics/track-metrics'
@@ -76,6 +76,8 @@ jest.mock('@/lib/supabase', () => ({
 }))
 
 describe('AI Workflow Tests', () => {
+  let supabase: any
+  
   beforeAll(async () => {
     // Verify LangSmith connection
     try {
@@ -90,6 +92,7 @@ describe('AI Workflow Tests', () => {
   })
 
   beforeEach(() => {
+    supabase = createServerSupabaseClient()
     jest.clearAllMocks()
   })
 
