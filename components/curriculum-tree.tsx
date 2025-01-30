@@ -18,11 +18,11 @@ interface CurriculumTreeProps {
 }
 
 // Define node types outside of component to prevent recreation
-function CustomNode({ data }: { data: { title: string; url: string } }) {
+function CustomNode({ data }: { data: { title: string; URL: string } }) {
   return (
     <div 
       className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm cursor-pointer hover:bg-gray-50"
-      onClick={() => window.open(data.url, '_blank')}
+      onClick={() => window.open(data.URL, '_blank')}
     >
       <Handle
         type="source"
@@ -41,77 +41,44 @@ function CustomNode({ data }: { data: { title: string; url: string } }) {
   );
 }
 
+// Define node and edge types outside component to prevent recreation on each render
 const nodeTypes = {
   custom: CustomNode
-};
-const edgeTypes = {};
+} as const;
+
+const edgeTypes = {} as const;
 
 export default function CurriculumTree({ nodes }: CurriculumTreeProps) {
   // Transform curriculum nodes into React Flow nodes and edges
   const getNodesAndEdges = useCallback(() => {
-    const flowNodes: Node[] = []
-    const flowEdges: Edge[] = []
-    const levelWidths: number[] = []
-    const nodesByLevel: { [key: number]: number } = {}
-
-    // First pass: count nodes per level and find max index for each level
-    nodes.forEach((node) => {
-      nodesByLevel[node.level] = (nodesByLevel[node.level] || 0) + 1
-      levelWidths[node.level] = Math.max(levelWidths[node.level] || 0, node.index_in_curriculum)
-    })
-
-    // Sort nodes by index to ensure depth-first order
-    const sortedNodes = [...nodes].sort((a, b) => a.index_in_curriculum - b.index_in_curriculum)
-
-    // Second pass: create nodes with positions
-    sortedNodes.forEach((node) => {
-      const level = node.level
-      const xSpacing = 300 // Horizontal spacing between branches
-      const ySpacing = 100 // Vertical spacing between levels
-      
-      // Calculate x position based on the index
-      // Nodes with sequential indices should be vertically aligned
-      const branchIndex = Math.floor(node.index_in_curriculum / 4) // Assuming max depth of 4
-      const x = branchIndex * xSpacing
-
-      // Y position is simply based on level
-      const y = level * ySpacing
-
-      const nodeData = {
-        title: node.source?.title || "Untitled",
-        url: node.source?.url || "#",
+    const flowNodes: Node[] = nodes.map((node, index) => ({
+      id: node.id,
+      type: 'custom',
+      position: { x: index * 200, y: node.level * 100 },
+      data: {
+        title: node.source?.title || 'Untitled',
+        URL: node.source?.URL || '#'
       }
+    }))
 
-      flowNodes.push({
-        id: node.id.toString(),
-        type: 'custom',
-        position: { x, y },
-        data: nodeData,
-        sourcePosition: Position.Bottom,
-        targetPosition: Position.Top,
-      })
-
-      // Create edges based on level and index relationships
-      const possibleChildren = sortedNodes.filter(child => 
-        child.level === level + 1 && // Next level
-        Math.floor(child.index_in_curriculum / 4) === Math.floor(node.index_in_curriculum / 4) // Same branch
-      )
-
-      possibleChildren.forEach(child => {
-          flowEdges.push({
-          id: `${node.id}-${child.id}`,
-          source: node.id.toString(),
-          target: child.id.toString(),
-            sourceHandle: 'source-handle',
-            targetHandle: 'target-handle',
-            type: "smoothstep",
-            markerEnd: {
-              type: MarkerType.ArrowClosed,
-            },
-            style: { stroke: "#999" },
-          })
-      })
-    })
+    // Create edges between nodes based on their levels
+    const flowEdges: Edge[] = []
+    for (let i = 0; i < nodes.length - 1; i++) {
+      const currentNode = nodes[i]
+      const nextNode = nodes[i + 1]
+      
+      if (nextNode.level > currentNode.level) {
+        flowEdges.push({
+          id: `${currentNode.id}-${nextNode.id}`,
+          source: currentNode.id,
+          target: nextNode.id,
+          type: 'smoothstep',
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+          },
+        })
+      }
+    }
 
     return { nodes: flowNodes, edges: flowEdges }
   }, [nodes])

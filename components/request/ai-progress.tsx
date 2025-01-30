@@ -43,6 +43,42 @@ export function AIProgress({ requestId }: AIProgressProps) {
     const channel = supabase.channel(`request_${requestId}_updates`)
     let mounted = true
 
+    // Also listen for request updates to detect completion
+    const requestChannel = supabase
+      .channel(`request_${requestId}_status`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'requests',
+          filter: `id=eq.${requestId}`,
+        },
+        (payload) => {
+          console.log('[AI Progress] Received request update:', payload)
+          const updatedRequest = payload.new as any
+          
+          // If request is finished, mark current stage as complete
+          if (updatedRequest.finished_at) {
+            console.log('[AI Progress] Request finished, marking current stage as complete')
+            const finalStageTime = (Date.now() - stageStartTime) / 1000
+            
+            setStageTimes(prev => ({
+              ...prev,
+              [stage]: finalStageTime
+            }))
+            
+            setCompletedStages(prev => {
+              if (prev.includes(stage)) return prev
+              return [...prev, stage]
+            })
+            
+            setIsComplete(true)
+            setTotalTime((Date.now() - startTime) / 1000)
+          }
+        }
+      )
+
     const handleProgress = (payload: any) => {
       console.log(`[AI Progress] Received progress update:`, payload)
       if (!mounted) return
@@ -83,27 +119,6 @@ export function AIProgress({ requestId }: AIProgressProps) {
           setStage(newStage)
         }
       }
-
-      // If this is the last step
-      if (step === totalSteps) {
-        const finalStageTime = (Date.now() - stageStartTime) / 1000
-        console.log(`[AI Progress] Final stage completed in ${finalStageTime}s`)
-        
-        // Update time for the final stage
-        setStageTimes(prev => ({
-          ...prev,
-          [stage]: finalStageTime
-        }))
-        
-        // Add the final stage to completed stages
-        setCompletedStages(prev => {
-          if (prev.includes(stage)) return prev
-          return [...prev, stage]
-        })
-        
-        setIsComplete(true)
-        setTotalTime((Date.now() - startTime) / 1000)
-      }
     }
 
     channel
@@ -112,11 +127,16 @@ export function AIProgress({ requestId }: AIProgressProps) {
         console.log(`[AI Progress] Channel subscription status: ${status}`)
       })
 
+    requestChannel.subscribe((status) => {
+      console.log(`[AI Progress] Request channel subscription status: ${status}`)
+    })
+
     return () => {
       mounted = false
       channel.unsubscribe()
+      requestChannel.unsubscribe()
     }
-  }, [requestId, supabase, stage])
+  }, [requestId, supabase, stage, startTime, stageStartTime])
 
   // Helper function to get current elapsed time for active stage
   const getCurrentStageTime = () => {

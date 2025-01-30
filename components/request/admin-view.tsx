@@ -31,64 +31,70 @@ export default function AdminView({
   const [request, setRequest] = useState<Request>(initialRequest)
   const [isLoading, setIsLoading] = useState(false)
   
-  // Fetch latest request data including curriculum
-  const fetchLatestRequest = async () => {
-    try {
-      setIsLoading(true)
-      const { data, error } = await supabase
-        .from('requests')
-        .select('*')
-        .eq('id', request.id)
-        .single()
-      
-      if (error) throw error
-      if (data) {
-        console.log('[Admin View] Fetched latest request data:', data)
-        setRequest(data)
-      }
-    } catch (error) {
-      console.error('[Admin View] Error fetching request:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-  
-  // Subscribe to request changes
+  // Set up realtime subscription
   useEffect(() => {
     console.log('[Admin View] Setting up realtime subscription')
-    
     const channel = supabase
-      .channel(`request_${request.id}_changes`)
+      .channel(`request_${request.id}_updates`)
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'UPDATE',
           schema: 'public',
           table: 'requests',
-          filter: `id=eq.${request.id}`
+          filter: `id=eq.${request.id}`,
         },
         async (payload) => {
           console.log('[Admin View] Received request update:', payload)
-          const newRequest = payload.new as Request
+          const updatedRequest = payload.new as Request
           
-          // If the request has just finished, fetch the complete data including curriculum
-          if (newRequest.finished_at && !request.finished_at) {
+          // If request is finished, fetch complete data
+          if (updatedRequest.finished_at && !request.finished_at) {
             console.log('[Admin View] Request finished, fetching complete data')
-            await fetchLatestRequest()
+            setIsLoading(true)
+            const { data } = await supabase
+              .from('requests')
+              .select(`
+                *,
+                curriculum:curriculums (
+                  id,
+                  curriculum_nodes (
+                    id,
+                    level,
+                    index_in_curriculum,
+                    start_time,
+                    end_time,
+                    source:sources (
+                      id,
+                      title,
+                      URL
+                    )
+                  )
+                )
+              `)
+              .eq('id', request.id)
+              .single()
+            
+            if (data) {
+              console.log('[Admin View] Fetched latest request data:', data)
+              setRequest(data)
+            }
+            setIsLoading(false)
           } else {
-            setRequest(newRequest)
+            setRequest(prev => ({ ...prev, ...updatedRequest }))
           }
         }
       )
-      .subscribe((status) => {
-        console.log('[Admin View] Subscription status:', status)
-      })
+      .subscribe()
+
+    console.log('[Admin View] Subscription status:', channel.state)
 
     return () => {
       console.log('[Admin View] Cleaning up subscription')
-      supabase.removeChannel(channel)
+      channel.unsubscribe()
+      console.log('[Admin View] Subscription status:', channel.state)
     }
-  }, [request.id, supabase])
+  }, [supabase, request.id])
 
   const status = getRequestStatus(request)
   const isAIProcessing = request.started_at && !request.finished_at && isAIHandledRequest(request, currentUser)
