@@ -8,9 +8,10 @@ import { cn } from "@/lib/utils"
 
 interface AIProgressProps {
   requestId: string
+  onComplete?: () => void
 }
 
-export function AIProgress({ requestId }: AIProgressProps) {
+export function AIProgress({ requestId, onComplete }: AIProgressProps) {
   const { supabase } = useSupabase()
   const [stage, setStage] = useState('gatherContext')
   const [progress, setProgress] = useState(0)
@@ -75,6 +76,7 @@ export function AIProgress({ requestId }: AIProgressProps) {
             
             setIsComplete(true)
             setTotalTime((Date.now() - startTime) / 1000)
+            onComplete?.()
           }
         }
       )
@@ -136,7 +138,7 @@ export function AIProgress({ requestId }: AIProgressProps) {
       channel.unsubscribe()
       requestChannel.unsubscribe()
     }
-  }, [requestId, supabase, stage, startTime, stageStartTime])
+  }, [requestId, supabase, stage, startTime, stageStartTime, onComplete])
 
   // Helper function to get current elapsed time for active stage
   const getCurrentStageTime = () => {

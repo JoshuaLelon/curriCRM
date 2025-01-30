@@ -13,8 +13,14 @@ This directory contains the LangGraph-based workflow implementation for AI-power
 The workflow is implemented as a directed graph with the following nodes:
 
 1. `gatherContext`: Fetches request details from the database
-2. `plan`: Uses GPT-4 to generate a learning plan
-3. `resourceSearch`: Finds or generates resources for each topic
+2. `plan`: Uses GPT-3.5-turbo to generate a learning plan
+3. `resourceSearch`: Finds or generates resources for each topic, with dynamic resource allocation:
+   - Uses GPT-3.5-turbo to rate each topic's complexity (1-5)
+   - Allocates resources based on complexity:
+     - Simple topics (1): 1 resource
+     - Complex topics (5): 5 resources
+     - Other topics: Resources match complexity rating
+   - Searches for high-quality video resources using Tavily API
 4. `build`: Creates the curriculum structure in the database
 
 ```mermaid

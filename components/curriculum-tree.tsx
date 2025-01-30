@@ -12,6 +12,7 @@ import ReactFlow, {
 } from "reactflow"
 import "reactflow/dist/style.css"
 import type { CurriculumNode } from "@/types/request"
+import { memo } from "react"
 
 interface CurriculumTreeProps {
   nodes: CurriculumNode[]
@@ -41,17 +42,24 @@ function CustomNode({ data }: { data: { title: string; URL: string } }) {
   );
 }
 
-// Define node and edge types outside component to prevent recreation on each render
+// Define node and edge types outside component and memoize them
 const nodeTypes = {
-  custom: CustomNode
+  custom: memo(CustomNode)
 } as const;
 
 const edgeTypes = {} as const;
 
 export default function CurriculumTree({ nodes }: CurriculumTreeProps) {
+  // Ensure nodes is an array
+  const safeNodes = useMemo(() => nodes || [], [nodes]);
+
   // Transform curriculum nodes into React Flow nodes and edges
   const getNodesAndEdges = useCallback(() => {
-    const flowNodes: Node[] = nodes.map((node, index) => ({
+    if (!Array.isArray(safeNodes) || safeNodes.length === 0) {
+      return { nodes: [], edges: [] };
+    }
+
+    const flowNodes: Node[] = safeNodes.map((node, index) => ({
       id: node.id,
       type: 'custom',
       position: { x: index * 200, y: node.level * 100 },
@@ -59,13 +67,13 @@ export default function CurriculumTree({ nodes }: CurriculumTreeProps) {
         title: node.source?.title || 'Untitled',
         URL: node.source?.URL || '#'
       }
-    }))
+    }));
 
     // Create edges between nodes based on their levels
-    const flowEdges: Edge[] = []
-    for (let i = 0; i < nodes.length - 1; i++) {
-      const currentNode = nodes[i]
-      const nextNode = nodes[i + 1]
+    const flowEdges: Edge[] = [];
+    for (let i = 0; i < safeNodes.length - 1; i++) {
+      const currentNode = safeNodes[i];
+      const nextNode = safeNodes[i + 1];
       
       if (nextNode.level > currentNode.level) {
         flowEdges.push({
@@ -76,16 +84,25 @@ export default function CurriculumTree({ nodes }: CurriculumTreeProps) {
           markerEnd: {
             type: MarkerType.ArrowClosed,
           },
-        })
+        });
       }
     }
 
-    return { nodes: flowNodes, edges: flowEdges }
-  }, [nodes])
+    return { nodes: flowNodes, edges: flowEdges };
+  }, [safeNodes]);
 
-  const { nodes: flowNodes, edges: flowEdges } = useMemo(() => getNodesAndEdges(), [getNodesAndEdges])
-  const [reactFlowNodes, setNodes, onNodesChange] = useNodesState(flowNodes)
-  const [reactFlowEdges, setEdges, onEdgesChange] = useEdgesState(flowEdges)
+  const { nodes: flowNodes, edges: flowEdges } = useMemo(() => getNodesAndEdges(), [getNodesAndEdges]);
+  const [reactFlowNodes, setNodes, onNodesChange] = useNodesState(flowNodes);
+  const [reactFlowEdges, setEdges, onEdgesChange] = useEdgesState(flowEdges);
+
+  // If no nodes, show placeholder
+  if (!Array.isArray(safeNodes) || safeNodes.length === 0) {
+    return (
+      <div className="h-[400px] border rounded-lg flex items-center justify-center text-gray-500">
+        No curriculum nodes available
+      </div>
+    );
+  }
 
   return (
     <div className="h-[400px] border rounded-lg">
@@ -100,5 +117,5 @@ export default function CurriculumTree({ nodes }: CurriculumTreeProps) {
         attributionPosition="bottom-left"
       />
     </div>
-  )
+  );
 } 

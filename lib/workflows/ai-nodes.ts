@@ -88,15 +88,28 @@ export const resourceSearchNode = traceNode('resourceSearch')(async (state: Reco
     // Initialize Tavily client
     const tavily = new (await import('tavily')).TavilyClient({ apiKey: process.env.TALIVY_API_KEY! })
 
+    // Model to determine number of resources needed
+    const model = new ChatOpenAI({ 
+      temperature: 0,
+      modelName: 'gpt-3.5-turbo'
+    })
+
     for (const item of planItems) {
       console.log(`[AI Node: resourceSearch] Finding resources for item: ${item}`)
       
       try {
+        // Determine number of resources needed based on topic complexity
+        const response = await model.invoke([
+          new HumanMessage(`Rate the complexity of learning "${item}" on a scale of 1-5, where 1 is very simple and 5 is very complex. Respond with just the number.`)
+        ])
+        const complexity = parseInt(response.content as string) || 3
+        const numResources = Math.max(1, Math.min(5, complexity)) // 1-5 resources based on complexity
+
         // Search for high-quality video resources using Tavily
         const searchResults = await tavily.search({
           query: `${item} video tutorial site:youtube.com OR site:vimeo.com`,
           search_depth: 'advanced',
-          max_results: 3,
+          max_results: numResources,
           include_images: false,
           include_answer: false,
           include_raw_content: false,

@@ -55,4 +55,10 @@ Access and actions are controlled by user role:
 ## AI Processing State
 We now consider a request "AI processing" if it has `started_at` but no `finished_at`, and the current user is handling the AI. We no longer check for an empty curriculum to show progress.
 
-This means the progress indicator will be shown as soon as the AI workflow starts (when `started_at` is set) and will remain visible until the workflow completes (when `finished_at` is set). This ensures users can see the progress even if the curriculum is generated quickly. 
+This means the progress indicator will be shown as soon as the AI workflow starts (when `started_at` is set) and will remain visible until the workflow completes (when `finished_at` is set). This ensures users can see the progress even if the curriculum is generated quickly.
+
+## Admin View Update
+AdminView now displays the curriculum once the request has finished. Specifically, if `finished_at` is set and `curriculum_nodes` are present, the curriculum will be rendered via the `<CurriculumView />` component.
+
+## AdminView State and Curriculum Render
+AdminView now keeps the request in local state and updates it when AI completes. This ensures the curriculum data is fetched from Supabase and displayed if the request is finished. 
