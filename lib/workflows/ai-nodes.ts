@@ -4,6 +4,7 @@ import { HumanMessage } from '@langchain/core/messages'
 import { RunnableConfig } from '@langchain/core/runnables'
 import { traceNode, NodeFn } from '@/lib/langsmith'
 import { WorkflowState, WorkflowStateUpdate } from './types'
+import { tavily } from "@tavily/core";
 
 // 1) gatherContextNode
 export const gatherContextNode = traceNode('gatherContext')(async (state: Record<string, any>): Promise<WorkflowStateUpdate> => {
@@ -75,80 +76,156 @@ export const planNode = traceNode('plan')(async (state: Record<string, any>): Pr
   }
 })
 
+interface TavilyResult {
+  title: string;
+  url: string;
+  content: string;
+  score: number;
+}
+
+interface YouTubeResource {
+  title: string;
+  url: string;
+  description: string;
+  score: number;
+}
+
+// Helper function to delay between API calls
+async function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Helper function for exponential backoff
+async function retryWithBackoff(fn: () => Promise<any>, maxRetries = 3): Promise<any> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      if (error?.response?.status === 429 && i < maxRetries - 1) {
+        const waitTime = Math.min(1000 * Math.pow(2, i), 10000); // Max 10 second wait
+        console.log(`Rate limited. Waiting ${waitTime}ms before retry ${i + 1}/${maxRetries}`);
+        await delay(waitTime);
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+
 // 3) resourceSearchNode
 export const resourceSearchNode = traceNode('resourceSearch')(async (state: Record<string, any>): Promise<WorkflowStateUpdate> => {
-  console.log(`[AI Node: resourceSearch] Starting for request ${state.requestId}`)
-  const { planItems = [] } = state
-  
-  try {
-    console.log(`[AI Node: resourceSearch] Processing ${planItems.length} items for request ${state.requestId}:`, planItems)
-    const supabase = createServerSupabaseClient()
-    const resources: Record<string, { title: string; URL: string }[]> = {}
+  console.log('Starting resourceSearchNode with state:', {
+    planItemsCount: state.planItems?.length,
+    requestId: state.requestId,
+    planItems: state.planItems
+  });
 
-    // Initialize Tavily client
-    const tavily = new (await import('tavily')).TavilyClient({ apiKey: process.env.TALIVY_API_KEY! })
+  const { planItems = [] } = state;
+  const resources: Record<string, any[]> = {};
 
-    // Model to determine number of resources needed
-    const model = new ChatOpenAI({ 
-      temperature: 0,
-      modelName: 'gpt-3.5-turbo'
-    })
-
-    for (const item of planItems) {
-      console.log(`[AI Node: resourceSearch] Finding resources for item: ${item}`)
-      
-      try {
-        // Determine number of resources needed based on topic complexity
-        const response = await model.invoke([
-          new HumanMessage(`Rate the complexity of learning "${item}" on a scale of 1-5, where 1 is very simple and 5 is very complex. Respond with just the number.`)
-        ])
-        const complexity = parseInt(response.content as string) || 3
-        const numResources = Math.max(1, Math.min(5, complexity)) // 1-5 resources based on complexity
-
-        // Search for high-quality video resources using Tavily
-        const searchResults = await tavily.search({
-          query: `${item} video tutorial site:youtube.com OR site:vimeo.com`,
-          search_depth: 'advanced',
-          max_results: numResources,
-          include_images: false,
-          include_answer: false,
-          include_raw_content: false,
-          include_domains: ["youtube.com", "vimeo.com"],
-          exclude_domains: ["facebook.com", "twitter.com", "instagram.com", "tiktok.com"]
-        })
-
-        resources[item] = searchResults.results.map(result => ({
-          title: result.title,
-          URL: result.url
-        }))
-
-        console.log(`[AI Node: resourceSearch] Found ${resources[item].length} resources for item: ${item}`)
-      } catch (searchError) {
-        console.error(`[AI Node: resourceSearch] Error searching for item ${item}:`, searchError)
-        // Fallback to a mock resource if Tavily search fails
-        resources[item] = [{
-          title: `Video tutorial for ${item}`,
-          URL: `https://youtube.com/watch?v=example`
-        }]
-      }
-    }
-
-    console.log(`[AI Node: resourceSearch] Found resources for ${Object.keys(resources).length} items:`, resources)
-    return {
-      resources,
-    }
-  } catch (error) {
-    console.error(`[AI Node: resourceSearch] Error for request ${state.requestId}:`, error)
-    throw error
+  if (!planItems.length) {
+    console.error('No plan items available');
+    throw new Error('No plan items available');
   }
+
+  // Initialize Tavily client
+  const apiKey = process.env.TALIVY_API_KEY;
+  if (!apiKey) {
+    console.error('Tavily API key not found');
+    throw new Error('Tavily API key not found');
+  }
+
+  console.log('Initializing Tavily client with API key:', apiKey.substring(0, 10) + '...');
+  const tvly = tavily({ apiKey });
+
+  // Process each topic
+  for (let i = 0; i < planItems.length; i++) {
+    const item = planItems[i];
+    console.log(`Searching for topic ${i + 1}/${planItems.length}: ${item}`);
+
+    try {
+      const searchQuery = `${item} youtube tutorial video`;
+      console.log(`Making search query: ${searchQuery}`);
+
+      const response = await tvly.search(searchQuery, {
+        searchDepth: "basic",
+        maxResults: 3, // Only need 1 result per topic
+        includeDomains: ["youtube.com"]
+      });
+
+      // Filter for YouTube watch URLs
+      const youtubeResults = (response?.results || [])
+        .filter((result: TavilyResult) => {
+          const isYoutube = result.url.includes('youtube.com/watch?v=');
+          if (!isYoutube) {
+            console.log(`Skipping non-YouTube result: ${result.url}`);
+          }
+          return isYoutube;
+        })
+        .map((result: TavilyResult) => ({
+          title: result.title || `Tutorial for ${item}`,
+          url: result.url,
+          description: result.content || `Video tutorial about ${item}`,
+          score: result.score
+        }))
+        .sort((a: YouTubeResource, b: YouTubeResource) => b.score - a.score);
+
+      if (youtubeResults.length > 0) {
+        resources[item] = [youtubeResults[0]];
+        console.log(`Found video for ${item}: ${youtubeResults[0].url}`);
+      } else {
+        // Use fallback if no YouTube results found
+        resources[item] = [{
+          title: `Tutorial for ${item}`,
+          url: `https://youtube.com/watch?v=example-${i}`,
+          description: `Video tutorial about ${item}`,
+          score: 1
+        }];
+        console.log(`No YouTube results found for ${item}, using fallback`);
+      }
+
+    } catch (error: any) {
+      console.error(`Error searching for ${item}:`, error?.response?.data || error);
+      // Use fallback for this topic
+      resources[item] = [{
+        title: `Tutorial for ${item}`,
+        url: `https://youtube.com/watch?v=example-${i}`,
+        description: `Video tutorial about ${item}`,
+        score: 1
+      }];
+      console.log(`Added fallback resource for ${item} after error`);
+    }
+  }
+
+  console.log('Final resources object:', {
+    itemCount: Object.keys(resources).length,
+    items: Object.keys(resources),
+    firstResource: Object.values(resources)[0]
+  });
+
+  return {
+    resources
+  };
 })
 
 // 4) buildCurriculumNode
 export const buildCurriculumNode = traceNode('build')(async (state: Record<string, any>): Promise<WorkflowStateUpdate> => {
-  const { planItems = [], resources = {}, requestId } = state
+  console.log('Starting buildCurriculumNode with state:', {
+    planItems: state.planItems,
+    resourcesCount: Object.keys(state.resources || {}).length,
+    requestId: state.requestId
+  });
 
-  // Generate a UUID for the curriculum
-  const supabase = createServerSupabaseClient()
+  const { planItems = [], resources = {}, requestId } = state;
+
+  if (!planItems.length) {
+    console.error('No plan items available');
+    throw new Error('No plan items available');
+  }
+
+  console.log('Resources received:', resources);
+
+  const supabase = createServerSupabaseClient();
   const { data: newCurriculum, error: curriculumError } = await supabase
     .from('curriculums')
     .insert([{ 
@@ -156,28 +233,52 @@ export const buildCurriculumNode = traceNode('build')(async (state: Record<strin
       request_id: requestId 
     }])
     .select()
-    .single()
-  if (curriculumError) throw curriculumError
+    .single();
 
-  // For each plan item, create a source and a curriculum_node
-  let lastEndTime = 0 // Keep track of the last end time
+  if (curriculumError) {
+    console.error('Error creating curriculum:', curriculumError);
+    throw curriculumError;
+  }
+
+  console.log('Created curriculum:', newCurriculum);
+
+  let lastEndTime = 0;
   for (let i = 0; i < planItems.length; i++) {
-    const item = planItems[i]
-    const [firstResource] = resources[item] || []
-    if (!firstResource) continue
+    const item = planItems[i];
+    const [firstResource] = resources[item] || [];
+    
+    console.log(`Processing item ${i + 1}/${planItems.length}:`, {
+      item,
+      hasResource: !!firstResource
+    });
+
+    if (!firstResource) {
+      console.log(`No resource found for item: ${item}`);
+      continue;
+    }
 
     const { data: newSource, error: sourceError } = await supabase
       .from('sources')
-      .insert([{ title: firstResource.title, URL: firstResource.URL }])
+      .insert([{ 
+        id: crypto.randomUUID(),
+        title: firstResource.title, 
+        URL: firstResource.url 
+      }])
       .select()
-      .single()
-    if (sourceError) throw sourceError
+      .single();
+
+    if (sourceError) {
+      console.error(`Error creating source for ${item}:`, sourceError);
+      throw sourceError;
+    }
+
+    console.log('Created source:', newSource);
 
     // Generate realistic-looking time segments (in seconds)
-    const segmentLength = Math.floor(Math.random() * 840) + 60 // Random length between 1-15 minutes
-    const start_time = lastEndTime + (i === 0 ? 0 : 30) // 30 second gap between segments
-    const end_time = start_time + segmentLength
-    lastEndTime = end_time
+    const segmentLength = Math.floor(Math.random() * 840) + 180; // Random length between 3-17 minutes
+    const start_time = lastEndTime;
+    const end_time = start_time + segmentLength;
+    lastEndTime = end_time;
 
     const { error: nodeError } = await supabase
       .from('curriculum_nodes')
@@ -189,11 +290,21 @@ export const buildCurriculumNode = traceNode('build')(async (state: Record<strin
         index_in_curriculum: i,
         start_time,
         end_time
-      }])
-    if (nodeError) throw nodeError
+      }]);
+
+    if (nodeError) {
+      console.error(`Error creating curriculum node for ${item}:`, nodeError);
+      throw nodeError;
+    }
+
+    console.log(`Created curriculum node for ${item} with times:`, {
+      start_time,
+      end_time
+    });
   }
 
-  return {}
+  console.log('Finished building curriculum');
+  return {};
 })
 
 export async function updateRequestStatus(requestId: string, status: string) {
