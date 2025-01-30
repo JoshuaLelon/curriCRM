@@ -45,6 +45,9 @@ export default function AIProgress({ requestId }: AIProgressProps) {
   const [isComplete, setIsComplete] = useState(false)
   const [startTime] = useState<number>(Date.now())
   const [totalTime, setTotalTime] = useState<number>(0)
+  const [elapsedTime, setElapsedTime] = useState<number>(0)
+  const [stageTimes, setStageTimes] = useState<Record<string, number>>({})
+  const [stageStartTime, setStageStartTime] = useState<number>(Date.now())
 
   useEffect(() => {
     console.log(`[AI Progress] Setting up channel for request ${requestId}`)
@@ -69,6 +72,17 @@ export default function AIProgress({ requestId }: AIProgressProps) {
           4: 'build'
         }
         const stageName = stepToStage[step] || 'gatherContext'
+        
+        // Record time for the previous stage when moving to a new stage
+        if (currentStage !== stageName) {
+          const stageTime = (Date.now() - stageStartTime) / 1000
+          setStageTimes(prev => ({
+            ...prev,
+            [currentStage]: stageTime
+          }))
+          setStageStartTime(Date.now())
+        }
+        
         console.log(`[AI Progress] Setting stage to: ${stageName}`)
         setCurrentStage(stageName)
 
@@ -77,6 +91,12 @@ export default function AIProgress({ requestId }: AIProgressProps) {
           // Calculate total time
           const timeInSeconds = (Date.now() - startTime) / 1000
           setTotalTime(timeInSeconds)
+          // Record time for the final stage
+          const finalStageTime = (Date.now() - stageStartTime) / 1000
+          setStageTimes(prev => ({
+            ...prev,
+            [stageName]: finalStageTime
+          }))
           // Wait a bit before marking as complete to show the final stage
           setTimeout(() => {
             console.log('[AI Progress] Marking as complete')
@@ -92,12 +112,25 @@ export default function AIProgress({ requestId }: AIProgressProps) {
     console.log('[AI Progress] Resetting states on mount')
     setCurrentStage("gatherContext")
     setIsComplete(false)
+    setStageTimes({})
+    setStageStartTime(Date.now())
 
     return () => {
       console.log(`[AI Progress] Cleaning up channel for request ${requestId}`)
       supabase.removeChannel(channel)
     }
-  }, [requestId, supabase, startTime])
+  }, [requestId, supabase, startTime, currentStage])
+
+  // Add timer effect
+  useEffect(() => {
+    if (isComplete) return
+
+    const timer = setInterval(() => {
+      setElapsedTime((Date.now() - startTime) / 1000)
+    }, 100)
+
+    return () => clearInterval(timer)
+  }, [startTime, isComplete])
 
   const currentStageIndex = STAGES.findIndex(s => s.name === currentStage)
   const progress = isComplete ? 100 : Math.round(((currentStageIndex + 1) / STAGES.length) * 100)
@@ -110,7 +143,7 @@ export default function AIProgress({ requestId }: AIProgressProps) {
         <h3 className="font-semibold">
           {isComplete 
             ? `Curriculum Generated (${totalTime.toFixed(1)}s)`
-            : "Generating Your Curriculum"}
+            : `Generating Your Curriculum (${elapsedTime.toFixed(1)}s)`}
         </h3>
         <Progress value={progress} className="h-2" />
       </div>
@@ -119,6 +152,7 @@ export default function AIProgress({ requestId }: AIProgressProps) {
         {STAGES.map((stage, index) => {
           const isActive = stage.name === currentStage
           const isStageComplete = isComplete || index < currentStageIndex
+          const stageTime = stageTimes[stage.name]
           
           return (
             <div 
@@ -136,8 +170,11 @@ export default function AIProgress({ requestId }: AIProgressProps) {
               ) : (
                 <Circle className="h-5 w-5 flex-shrink-0" />
               )}
-              <div>
-                <div className="font-medium">{stage.label}</div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <div className="font-medium">{stage.label}</div>
+                  {stageTime && <div className="text-sm text-muted-foreground">({stageTime.toFixed(1)}s)</div>}
+                </div>
                 <div className="text-sm text-muted-foreground">
                   {stage.description}
                 </div>

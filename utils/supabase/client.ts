@@ -10,7 +10,7 @@ export const createBrowserSupabaseClient = () => {
         flowType: 'pkce',
         autoRefreshToken: true,
         detectSessionInUrl: true,
-        persistSession: true,
+        persistSession: true
       },
       global: {
         headers: {

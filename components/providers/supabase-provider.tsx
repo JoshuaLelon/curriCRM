@@ -27,15 +27,20 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true
 
-    async function checkSession() {
+    async function checkSession(retryCount = 0) {
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
         console.log('Provider session check:', {
           hasSession: !!session,
           error: error || 'none',
           pathname,
-          userId: session?.user?.id || 'none'
+          userId: session?.user?.id || 'none',
+          retryCount
         })
+        
+        if (error) {
+          throw error
+        }
         
         if (mounted) {
           setHasSession(!!session)
@@ -50,9 +55,22 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error('Session check error:', error)
+        
+        // Retry up to 3 times with exponential backoff
+        if (retryCount < 3 && mounted) {
+          const delay = Math.pow(2, retryCount) * 1000 // 1s, 2s, 4s
+          console.log(`Retrying session check in ${delay}ms...`)
+          setTimeout(() => checkSession(retryCount + 1), delay)
+          return
+        }
+        
         if (mounted) {
           setHasSession(false)
           setIsLoading(false)
+          // If all retries fail, redirect to login
+          if (pathname !== '/login' && !pathname?.startsWith('/auth')) {
+            router.push('/login')
+          }
         }
       }
     }
